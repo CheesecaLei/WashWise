@@ -22,14 +22,14 @@ export function useActivities() {
         try {
             setLoading(true);
             const response = await fetch(`/api/admin/logs?page=${pageNum}&limit=20`);
-            if (!response.ok) throw new Error("Failed to fetch logs");
             const data = await response.json();
+            if (!response.ok) throw new Error(data.error || "Failed to fetch logs");
             setLogs(data.logs);
             setStats(data.stats);
             setPagination(data.pagination);
             setError(null);
         } catch (err) {
-            setError("Unable to load activity logs.");
+            setError(err instanceof Error ? err.message : "Unable to load activity logs.");
             console.error(err);
         } finally {
             setLoading(false);

@@ -26,3 +26,28 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
+
+/* Leaflet map hint tooltip override */
+.map-hint-tooltip {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 8px !important;
+  color: #475569 !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  padding: 6px 12px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+  pointer-events: none !important;
+  white-space: nowrap !important;
+}
+
+.map-hint-tooltip::before {
+  display: none !important;
+}
+
+/* Leaflet controls z-index fix for MUI modals */
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 800 !important;
+}
+

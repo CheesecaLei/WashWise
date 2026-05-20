@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React from "react";
 import { CheckCircle2, AlertCircle, Truck, Activity, UserCog, UserMinus, RefreshCcw, Package, Clock } from "lucide-react";
 import {
 	alpha,
@@ -18,7 +18,7 @@ import Sidebar from "../../components/sidebar";
 import Footer from "../../components/footer";
 import PremiumPagination from "../../components/pagination";
 import { useActivities } from "../../hooks/use-activities";
-import type { ActivityLog, ActivityStat } from "../../types/dashboard";
+
 
 function getActivityIcon(type: string) {
 	const iconProps = { size: 18, strokeWidth: 1.9 };
@@ -111,7 +111,7 @@ export default function ActivitiesPage() {
 	}
 
 	return (
-		<Box sx={{ minHeight: "100dvh", height: { xs: "auto", md: "100dvh" }, display: "flex", bgcolor: "background.default", overflow: { xs: "visible", md: "hidden" } }}>
+		<Box sx={{ minHeight: "100dvh", display: "flex", bgcolor: "background.default" }}>
 			<Sidebar />
 
 			<Box
@@ -119,9 +119,6 @@ export default function ActivitiesPage() {
 				sx={{
 					flex: 1,
 					minWidth: 0,
-					height: { xs: "auto", md: "100dvh" },
-					overflowY: "auto",
-					overflowX: "hidden",
 					display: "flex",
 					flexDirection: "column",
 				}}
@@ -163,7 +160,10 @@ export default function ActivitiesPage() {
 												height: 36,
 												mx: "auto",
 												mb: 1,
-												bgcolor: (theme) => alpha(theme.palette[stat.color as any].main, 0.13),
+												bgcolor: (theme) => {
+													const color = stat.color as "primary" | "secondary" | "success" | "error" | "info" | "warning";
+													return alpha(theme.palette[color]?.main || theme.palette.primary.main, 0.13);
+												},
 												color: `${stat.color}.main`,
 											}}
 										>
@@ -205,7 +205,10 @@ export default function ActivitiesPage() {
 												sx={{
 													width: 36,
 													height: 36,
-													bgcolor: (theme) => alpha(theme.palette[getActivityColor(activity.type) as any]?.main || theme.palette.grey[400], 0.13),
+													bgcolor: (theme) => {
+														const color = getActivityColor(activity.type) as "primary" | "secondary" | "success" | "error" | "info" | "warning";
+														return alpha(theme.palette[color]?.main || theme.palette.grey[400], 0.13);
+													},
 													color: `${getActivityColor(activity.type)}.main`,
 													flexShrink: 0,
 												}}
@@ -229,7 +232,7 @@ export default function ActivitiesPage() {
 													</Typography>
 												</Stack>
 												<Typography variant="caption" sx={{ color: "text.secondary", fontSize: 10 }}>
-													By: {activity.performedBy} {(activity as any).details ? ` - ${(activity as any).details}` : ""}
+													By: {activity.performedBy} {(activity as Record<string, unknown>).details ? ` - ${(activity as Record<string, unknown>).details}` : ""}
 												</Typography>
 											</Box>
 										</Stack>

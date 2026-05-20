@@ -262,6 +262,7 @@ function initializeAIClient(apiKey: string): GoogleGenerativeAI {
 /**
  * Get generative model with proper configuration
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getGenerativeModel(client: GoogleGenerativeAI, config: AIConfig): any {
     try {
         if (typeof client.getGenerativeModel === 'function') {
@@ -275,7 +276,9 @@ function getGenerativeModel(client: GoogleGenerativeAI, config: AIConfig): any {
                     maxOutputTokens: config.maxOutputTokens,
                 },
             });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } else if (typeof (client as any).model === 'function') {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const model = (client as any).model(config.modelId);
             // Attach system instruction if supported
             if (typeof model.setSystemInstruction === 'function') {
@@ -297,6 +300,7 @@ function getGenerativeModel(client: GoogleGenerativeAI, config: AIConfig): any {
 /**
  * Start chat session with conversation history
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function startChatSession(model: any, history: ChatMessage[]): any {
     try {
         if (typeof model.startChat === 'function') {
@@ -323,10 +327,13 @@ function startChatSession(model: any, history: ChatMessage[]): any {
 /**
  * Send message with timeout protection
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function sendMessageWithTimeout(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     chat: any,
     message: string,
     timeoutMs: number
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any> {
     const sendPromise = (async () => {
         if (typeof chat.sendMessage === 'function') {
@@ -351,6 +358,7 @@ async function sendMessageWithTimeout(
 /**
  * Extract text from AI response with multiple format support
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function extractResponseText(result: any): string {
     if (result == null) {
         throw new AIError(AIErrorType.API_ERROR, 'Empty response from AI service');
@@ -372,7 +380,7 @@ function extractResponseText(result: any): string {
                 const firstCandidate = result.response.candidates[0];
                 if (firstCandidate?.content?.parts && Array.isArray(firstCandidate.content.parts)) {
                     const text = firstCandidate.content.parts
-                        .map((part: any) => part.text || '')
+                        .map((part: { text?: string }) => part.text || '')
                         .filter(Boolean)
                         .join('\n');
                     if (text) return text;
@@ -387,7 +395,7 @@ function extractResponseText(result: any): string {
         const firstCandidate = result.candidates[0];
         if (firstCandidate?.content?.parts && Array.isArray(firstCandidate.content.parts)) {
             const text = firstCandidate.content.parts
-                .map((part: any) => part.text || '')
+                .map((part: { text?: string }) => part.text || '')
                 .filter(Boolean)
                 .join('\n');
             if (text) return text;
@@ -400,7 +408,7 @@ function extractResponseText(result: any): string {
     
     if (result.output && Array.isArray(result.output)) {
         return result.output
-            .map((o: any) => o.text || '')
+            .map((o: { text?: string }) => o.text || '')
             .filter(Boolean)
             .join('\n');
     }

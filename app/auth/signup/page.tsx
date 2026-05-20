@@ -1,19 +1,30 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { FormEvent, useMemo, useState } from "react";
+import "leaflet/dist/leaflet.css";
+
+const MapAddressPicker = dynamic(() => import("../../components/MapAddressPicker"), {
+	ssr: false,
+	loading: () => (
+		<div style={{ height: 280, display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid #e0e0e0", borderRadius: 8 }}>
+			<span style={{ color: "#888", fontSize: 14 }}>Loading map…</span>
+		</div>
+	),
+});
 import {
 	EmailOutlined,
-	Google,
 	HomeOutlined,
 	LockOutlined,
 	LocationCityOutlined,
-	LocationOnOutlined,
 	PhoneOutlined,
 	PersonOutline,
 	Visibility,
 	VisibilityOff,
+	Check,
+	Close,
 } from "@mui/icons-material";
 import { GoogleLogin } from "@react-oauth/google";
 import {
@@ -23,18 +34,16 @@ import {
 	Button,
 	IconButton,
 	InputAdornment,
-	MenuItem,
 	Stack,
 	TextField,
 	Typography,
+	Checkbox,
+	FormControlLabel,
 } from "@mui/material";
 import AuthLayoutWrapper from "../components/AuthLayoutWrapper";
 import {
-	authFooterBrandText,
-	authFooterLinks,
 	buildSignupFormattedAddress,
 	initialSignupFormValues,
-	olongapoBarangays,
 	signupFieldHints,
 	signupFormLabels,
 	signupFormRegex,
@@ -136,6 +145,8 @@ export default function SignupPage() {
 	const [formValues, setFormValues] = useState<SignupFormValues>(initialSignupFormValues);
 	const [formErrors, setFormErrors] = useState<SignupFormErrors>({});
 	const [successMessage, setSuccessMessage] = useState("");
+	const [agreeTerms, setAgreeTerms] = useState(false);
+	const [agreePrivacy, setAgreePrivacy] = useState(false);
 	const [googleAuthData, setGoogleAuthData] = useState<{
 		credential: string;
 		email: string;
@@ -145,10 +156,10 @@ export default function SignupPage() {
 	const { signup, isSubmitting, apiError, clearApiError } = useSignup();
 
 	const isLastStep = activeStep === signupSteps.length - 1;
-	const stepNumberLabel = `${signupPageCopy.stepLabelPrefix} ${activeStep + 1} ${signupPageCopy.stepLabelConnector} ${signupSteps.length}`;
 
 	const formattedAddress = useMemo(
 		() => buildSignupFormattedAddress(formValues),
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 		[formValues.barangay, formValues.houseOrUnit, formValues.street],
 	);
 
@@ -249,7 +260,7 @@ export default function SignupPage() {
 
 				router.replace(data.user.role === "admin" ? "/admin/dashboard" : "/member/dashboard");
 				return;
-			} catch (error: any) {
+			} catch (error) {
 				console.error("Google registration error:", error);
 				// Set API error manually since we're not using the hook for Google auth
 				return;
@@ -259,14 +270,15 @@ export default function SignupPage() {
 		const result = await signup(submitValues);
 
 		if (result.ok) {
-			router.replace("/auth/login");
+			const encodedEmail = encodeURIComponent(submitValues.email);
+			router.replace(`/auth/verify-email?email=${encodedEmail}`);
 			return;
 		}
 
 		setSuccessMessage("");
 	};
 
-	const handleGoogleSuccess = async (credentialResponse: any) => {
+	const handleGoogleSuccess = async (credentialResponse: { credential?: string }) => {
 		clearApiError();
 		try {
 			const response = await fetch("/api/auth/google", {
@@ -295,7 +307,7 @@ export default function SignupPage() {
 			}
 
 			router.replace(data.user.role === "admin" ? "/admin/dashboard" : "/member/dashboard");
-		} catch (error: any) {
+		} catch (error) {
 			console.error("Google signup error:", error);
 		}
 	};
@@ -365,14 +377,6 @@ export default function SignupPage() {
 						}}
 					/>
 
-					<Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.5 }}>
-						We use your contact number to coordinate pickup, delivery, and order updates. {" "}
-						<Typography component={Link} href="/privacy" variant="caption" sx={{ fontWeight: 700, textDecoration: "none" }}>
-							Read our Privacy Policy
-						</Typography>
-						.
-					</Typography>
-
 					{!googleAuthData && (
 						<Stack alignItems="center" spacing={1} sx={{ pt: 1 }}>
 							<Typography variant="caption" color="text.secondary">
@@ -398,14 +402,6 @@ export default function SignupPage() {
 		if (activeStep === 1) {
 			return (
 				<Stack spacing={1.2}>
-					<Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.5 }}>
-						We use your address details to route pickup and delivery operations. {" "}
-						<Typography component={Link} href="/privacy" variant="caption" sx={{ fontWeight: 700, textDecoration: "none" }}>
-							Read our Privacy Policy
-						</Typography>
-						.
-					</Typography>
-
 					<TextField
 						fullWidth
 						required
@@ -424,41 +420,16 @@ export default function SignupPage() {
 						}}
 					/>
 
-					<TextField
-						fullWidth
-						required
-						label={signupFormLabels.street}
-						size="small"
-						value={formValues.street}
-						onChange={(event) => handleFieldChange("street", event.target.value)}
-						error={Boolean(formErrors.street)}
-						helperText={formErrors.street}
-						InputProps={{
-							startAdornment: (
-								<InputAdornment position="start">
-									<LocationOnOutlined fontSize="small" />
-								</InputAdornment>
-							),
+					<MapAddressPicker
+						street={formValues.street}
+						barangay={formValues.barangay}
+						onAddressChange={(street, barangay) => {
+							handleFieldChange("street", street);
+							handleFieldChange("barangay", barangay);
 						}}
+						streetError={formErrors.street}
+						barangayError={formErrors.barangay}
 					/>
-
-					<TextField
-						select
-						fullWidth
-						required
-						label={signupFormLabels.barangay}
-						size="small"
-						value={formValues.barangay}
-						onChange={(event) => handleFieldChange("barangay", event.target.value)}
-						error={Boolean(formErrors.barangay)}
-						helperText={formErrors.barangay ?? signupFieldHints.barangay}
-					>
-						{olongapoBarangays.map((barangay) => (
-							<MenuItem key={barangay} value={barangay}>
-								{barangay}
-							</MenuItem>
-						))}
-					</TextField>
 
 					<TextField
 						fullWidth
@@ -483,17 +454,17 @@ export default function SignupPage() {
 								),
 							}}
 						/>
-							<TextField fullWidth label={signupFormLabels.province} size="small" value={signupReadonlyAddress.province} InputProps={{ readOnly: true }} />
+						<TextField fullWidth label={signupFormLabels.province} size="small" value={signupReadonlyAddress.province} InputProps={{ readOnly: true }} />
 					</Stack>
 
 					<Stack direction={{ xs: "column", sm: "row" }} spacing={1.2}>
-							<TextField fullWidth label={signupFormLabels.country} size="small" value={signupReadonlyAddress.country} InputProps={{ readOnly: true }} />
-							<TextField fullWidth label={signupFormLabels.postalCode} size="small" value={signupReadonlyAddress.postalCode} InputProps={{ readOnly: true }} />
+						<TextField fullWidth label={signupFormLabels.country} size="small" value={signupReadonlyAddress.country} InputProps={{ readOnly: true }} />
+						<TextField fullWidth label={signupFormLabels.postalCode} size="small" value={signupReadonlyAddress.postalCode} InputProps={{ readOnly: true }} />
 					</Stack>
 
 					{formattedAddress && (
 						<Typography variant="caption" sx={{ color: "text.secondary" }}>
-								{signupPageCopy.addressPreviewPrefix} {formattedAddress}
+							{signupPageCopy.addressPreviewPrefix} {formattedAddress}
 						</Typography>
 					)}
 				</Stack>
@@ -513,6 +484,33 @@ export default function SignupPage() {
 			);
 		}
 
+		// Password strength calculation
+		const password = formValues.password;
+		const checks = [
+			{ label: "At least 8 characters", met: password.length >= 8 },
+			{ label: "At least one uppercase and lowercase letter", met: /[a-z]/.test(password) && /[A-Z]/.test(password) },
+			{ label: "At least one number (0-9)", met: /\d/.test(password) },
+			{ label: "At least one special character (e.g. !@#$%)", met: /[^a-zA-Z0-9]/.test(password) }
+		];
+		const strengthScore = password ? checks.filter((c) => c.met).length : 0;
+
+		const getStrengthLabel = (score: number) => {
+			if (!password) return "";
+			if (score === 1) return "Weak";
+			if (score === 2) return "Fair";
+			if (score === 3) return "Good";
+			if (score === 4) return "Strong";
+			return "Very Weak";
+		};
+
+		const getStrengthColor = (score: number) => {
+			if (score === 1) return "#ef4444"; // Red
+			if (score === 2) return "#f97316"; // Orange
+			if (score === 3) return "#3b82f6"; // Blue
+			if (score === 4) return "#10b981"; // Emerald Green
+			return "#e2e8f0";
+		};
+
 		return (
 			<Stack spacing={1.4}>
 				<TextField
@@ -524,7 +522,7 @@ export default function SignupPage() {
 					value={formValues.password}
 					onChange={(event) => handleFieldChange("password", event.target.value)}
 					error={Boolean(formErrors.password)}
-					helperText={formErrors.password ?? signupFieldHints.password}
+					helperText={formErrors.password}
 					InputProps={{
 						startAdornment: (
 							<InputAdornment position="start">
@@ -544,6 +542,59 @@ export default function SignupPage() {
 						),
 					}}
 				/>
+
+				{/* Password Strength Checklist and Indicator */}
+				<Stack spacing={1} sx={{ mt: 0.5, mb: 1, px: 0.5 }}>
+					{password && (
+						<Stack direction="row" justifyContent="space-between" alignItems="center">
+							<Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 500 }}>
+								Password strength:
+							</Typography>
+							<Typography variant="caption" sx={{ color: getStrengthColor(strengthScore), fontWeight: 700 }}>
+								{getStrengthLabel(strengthScore)}
+							</Typography>
+						</Stack>
+					)}
+
+					{/* 4-segment strength bar */}
+					<Stack direction="row" spacing={0.6} sx={{ width: "100%", height: 5 }}>
+						{[1, 2, 3, 4].map((index) => (
+							<Box
+								key={index}
+								sx={{
+									flex: 1,
+									height: "100%",
+									borderRadius: 1,
+									bgcolor: index <= strengthScore ? getStrengthColor(strengthScore) : "action.hover",
+									transition: "background-color 0.3s ease",
+								}}
+							/>
+						))}
+					</Stack>
+
+					{/* Checklist of rules */}
+					<Stack spacing={0.5} sx={{ mt: 1 }}>
+						{checks.map((check, idx) => (
+							<Stack key={idx} direction="row" alignItems="center" spacing={1}>
+								{check.met ? (
+									<Check sx={{ fontSize: 15, color: "success.main" }} />
+								) : (
+									<Close sx={{ fontSize: 15, color: "text.disabled" }} />
+								)}
+								<Typography
+									variant="caption"
+									sx={{
+										color: check.met ? "success.main" : "text.secondary",
+										fontWeight: check.met ? 600 : 400,
+										transition: "color 0.2s ease",
+									}}
+								>
+									{check.label}
+								</Typography>
+							</Stack>
+						))}
+					</Stack>
+				</Stack>
 
 				<TextField
 					fullWidth
@@ -581,6 +632,20 @@ export default function SignupPage() {
 	return (
 		<AuthLayoutWrapper maxWidth={720}>
 			<Box sx={{ px: { xs: 2, sm: 6 }, py: { xs: 3, sm: 5 } }}>
+				<Box sx={{ display: "flex", justifyContent: "center", mb: 2 }}>
+					<Box
+						component="img"
+						src="/WASHWISE LOGO.png"
+						alt="WashWise Logo"
+						sx={{
+							width: 60,
+							height: 60,
+							objectFit: "contain",
+							filter: "drop-shadow(0px 4px 10px rgba(0,0,0,0.06))"
+						}}
+					/>
+				</Box>
+
 				<Typography variant="h4" sx={{ fontWeight: 800, textAlign: "center", mb: 0.8, background: (theme) => `linear-gradient(90deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.light} 100%)`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
 					{signupPageCopy.title}
 				</Typography>
@@ -592,111 +657,76 @@ export default function SignupPage() {
 					<Stack spacing={3}>
 						<Stack direction="row" spacing={1.5} justifyContent="center" sx={{ mb: 2, mt: 1 }}>
 							{signupSteps.map((step, idx) => (
-								<Box 
-									key={step.id} 
-									sx={{ 
-										width: activeStep === idx ? 32 : 10, 
-										height: 6, 
-										borderRadius: 3, 
+								<Box
+									key={step.id}
+									sx={{
+										width: activeStep === idx ? 32 : 10,
+										height: 6,
+										borderRadius: 3,
 										bgcolor: (theme) => activeStep === idx ? theme.palette.primary.main : (activeStep > idx ? theme.palette.primary.light : alpha(theme.palette.primary.main, 0.3)),
-										transition: "all 0.3s ease" 
-									}} 
+										transition: "all 0.3s ease"
+									}}
 								/>
 							))}
 						</Stack>
 
-						<Box component="form" onSubmit={handleSubmit} noValidate>
-							<Stack spacing={2}>
-								<Stack spacing={0.3} alignItems="center">
-									<Typography variant="overline" sx={{ color: "text.secondary", letterSpacing: 1.1 }}>
-										{stepNumberLabel}
-									</Typography>
-									<Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-										{signupSteps[activeStep].title}
-									</Typography>
-									<Typography variant="caption" sx={{ color: "text.secondary", textAlign: "center" }}>
-										{signupSteps[activeStep].helper}
-									</Typography>
-								</Stack>
-
-								<Stepper activeStep={activeStep} alternativeLabel sx={{ px: { xs: 0, sm: 1 } }}>
-									{signupSteps.map((step) => (
-										<Step key={step.id}>
-											<StepLabel>{step.title}</StepLabel>
-										</Step>
-									))}
-								</Stepper>
-
-								{renderStepFields()}
-
-								{apiError && <Alert severity="error">{apiError}</Alert>}
-								{successMessage && <Alert severity="success">{successMessage}</Alert>}
-
-								<Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
-									<Button type="button" color="inherit" onClick={handleBackStep} disabled={activeStep === 0 || isSubmitting}>
-										{signupPageCopy.backLabel}
-									</Button>
-
-									{isLastStep ? (
-										<Button type="submit" variant="contained" size="large" sx={{ px: 4, borderRadius: 1.2 }} disabled={isSubmitting}>
-											{isSubmitting ? signupPageCopy.submitLoadingLabel : signupPageCopy.submitLabel}
-										</Button>
-									) : (
-										<Button type="button" variant="contained" size="large" sx={{ px: 4, borderRadius: 1.2 }} onClick={handleNextStep}>
-											{signupPageCopy.continueLabel}
-										</Button>
-									)}
-								</Stack>
-
-								{isLastStep && (
-									<Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.5 }}>
-										By signing up, you agree to our {" "}
-										<Typography component={Link} href="/terms" variant="caption" sx={{ fontWeight: 700, textDecoration: "none" }}>
-											Terms and Conditions
-										</Typography>
-										{" "}and acknowledge our {" "}
-										<Typography component={Link} href="/privacy" variant="caption" sx={{ fontWeight: 700, textDecoration: "none" }}>
-											Privacy Policy
-										</Typography>
-										.
-									</Typography>
-								)}
-
-								{isLastStep && isSubmitting && (
-									<Typography variant="caption" sx={{ color: "text.secondary", textAlign: "right" }}>
-										{signupPageCopy.submitLoadingStatus}
-									</Typography>
-								)}
-
-								{isLastStep && !googleAuthData && (
-									<Stack alignItems="center" spacing={1.2} sx={{ pt: 0.6 }}>
-										<GoogleLogin
-											onSuccess={handleGoogleSuccess}
-											onError={() => {
-												console.error("Google Login Failed");
-											}}
-											useOneTap
-											shape="pill"
-											theme="filled_blue"
-											text="continue_with"
-											width="240"
-										/>
-									</Stack>
-								)}
-							</Stack>
+						<Box sx={{ mt: 2 }}>
+							{renderStepFields()}
 						</Box>
+
+						{isLastStep && (
+							<Stack spacing={0.5} sx={{ mt: 1, px: 0.5 }}>
+								<FormControlLabel
+									control={
+										<Checkbox
+											checked={agreeTerms}
+											onChange={(e) => setAgreeTerms(e.target.checked)}
+											color="primary"
+											size="small"
+										/>
+									}
+									label={
+										<Typography variant="body2" sx={{ fontSize: 13, color: "text.secondary" }}>
+											I accept the{" "}
+											<Link href="/terms" target="_blank" style={{ fontWeight: 700, color: "#11998e", textDecoration: "none" }}>
+												Terms of Service
+											</Link>
+										</Typography>
+									}
+								/>
+								<FormControlLabel
+									control={
+										<Checkbox
+											checked={agreePrivacy}
+											onChange={(e) => setAgreePrivacy(e.target.checked)}
+											color="primary"
+											size="small"
+										/>
+									}
+									label={
+										<Typography variant="body2" sx={{ fontSize: 13, color: "text.secondary" }}>
+											I agree to the{" "}
+											<Link href="/privacy" target="_blank" style={{ fontWeight: 700, color: "#11998e", textDecoration: "none" }}>
+												Privacy Policy
+											</Link>{" "}
+											under the Philippine DPA
+										</Typography>
+									}
+								/>
+							</Stack>
+						)}
 
 						{apiError && <Alert severity="error" sx={{ borderRadius: 2 }}>{apiError}</Alert>}
 						{successMessage && <Alert severity="success" sx={{ borderRadius: 2 }}>{successMessage}</Alert>}
 
 						<Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} sx={{ pt: 2 }}>
-							<Button 
+							<Button
 								type="button"
 								variant="text"
-								onClick={handleBackStep} 
+								onClick={handleBackStep}
 								disabled={activeStep === 0 || isSubmitting}
-								sx={{ 
-									fontWeight: 600, 
+								sx={{
+									fontWeight: 600,
 									color: "primary.main",
 									"&:hover": { color: "primary.dark", background: "rgba(0,0,0,0.05)" }
 								}}
@@ -705,7 +735,7 @@ export default function SignupPage() {
 							</Button>
 
 							{isLastStep ? (
-								<Button type="submit" variant="contained" size="large" sx={{ px: 5 }} disabled={isSubmitting}>
+								<Button type="submit" variant="contained" size="large" sx={{ px: 5 }} disabled={isSubmitting || !agreeTerms || !agreePrivacy}>
 									{isSubmitting ? signupPageCopy.submitLoadingLabel : signupPageCopy.submitLabel}
 								</Button>
 							) : (
@@ -714,6 +744,30 @@ export default function SignupPage() {
 								</Button>
 							)}
 						</Stack>
+
+						{isLastStep && (
+							<Typography variant="caption" color="text.secondary" sx={{ mt: 1, textAlign: "center" }}>
+								By signing up, you agree to our{' '}
+								<Typography
+									component={Link}
+									href="/terms"
+									variant="caption"
+									sx={{ fontWeight: 700, textDecoration: 'none', color: '#11998e' }}
+								>
+									Terms of Service
+								</Typography>{' '}
+								and acknowledge our{' '}
+								<Typography
+									component={Link}
+									href="/privacy"
+									variant="caption"
+									sx={{ fontWeight: 700, textDecoration: 'none', color: '#11998e' }}
+								>
+									Privacy Policy
+								</Typography>
+								.
+							</Typography>
+						)}
 
 						{isLastStep && isSubmitting && (
 							<Typography variant="caption" sx={{ color: "text.secondary", textAlign: "right" }}>
@@ -758,9 +812,9 @@ export default function SignupPage() {
 						component={Link}
 						href="/auth/login"
 						variant="body2"
-						sx={{ 
-							fontWeight: 800, 
-							color: "#11998e", 
+						sx={{
+							fontWeight: 800,
+							color: "#11998e",
 							textDecoration: "none",
 							transition: "color 0.2s",
 							"&:hover": { color: "#0d7a71" }

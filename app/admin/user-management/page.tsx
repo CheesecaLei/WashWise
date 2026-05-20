@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MoreVertical, Mail, Phone, RefreshCcw, Trash2, UserCheck, UserX, AlertCircle } from "lucide-react";
+import { MoreVertical, Mail, Phone, RefreshCcw, Trash2, UserCheck, UserX } from "lucide-react";
 import {
 	Avatar,
 	Box,
@@ -87,7 +87,7 @@ export default function UserManagementPage() {
 	}
 
 	return (
-		<Box sx={{ minHeight: "100dvh", height: { xs: "auto", md: "100dvh" }, display: "flex", bgcolor: "background.default", overflow: { xs: "visible", md: "hidden" } }}>
+		<Box sx={{ minHeight: "100dvh", display: "flex", bgcolor: "background.default" }}>
 			<Sidebar />
 
 			<Box
@@ -95,9 +95,6 @@ export default function UserManagementPage() {
 				sx={{
 					flex: 1,
 					minWidth: 0,
-					height: { xs: "auto", md: "100dvh" },
-					overflowY: "auto",
-					overflowX: "hidden",
 					display: "flex",
 					flexDirection: "column",
 				}}

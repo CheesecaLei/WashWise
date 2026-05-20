@@ -35,7 +35,7 @@ export function useProfile() {
 			const data = (await response.json()) as FetchProfileResponse;
 
 			if (!response.ok || !data.success) {
-				const message = (data as any).error || "Failed to load profile.";
+				const message = (!data.success ? data.error : undefined) || "Failed to load profile.";
 				setError(message);
 				return { success: false, error: message };
 			}
@@ -63,7 +63,7 @@ export function useProfile() {
 			const data = (await response.json()) as UpdateProfileResponse;
 
 			if (!response.ok || !data.success) {
-				const message = (data as any).error || "Failed to update profile.";
+				const message = (!data.success ? data.error : undefined) || "Failed to update profile.";
 				setError(message);
 				return { success: false, error: message };
 			}
@@ -95,7 +95,7 @@ export function useProfile() {
 			const data = (await response.json()) as UpdatePasswordResponse;
 
 			if (!response.ok || !data.success) {
-				const message = (data as any).error || "Failed to update password.";
+				const message = (!data.success ? data.error : undefined) || "Failed to update password.";
 				setError(message);
 				return { success: false, error: message };
 			}

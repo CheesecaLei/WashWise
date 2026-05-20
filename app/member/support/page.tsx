@@ -22,10 +22,6 @@ import {
 	Tabs,
 	Tab,
 	InputAdornment,
-	FormControl,
-	InputLabel,
-	Select,
-	MenuItem,
 	IconButton,
 	Dialog,
 	DialogTitle,
@@ -34,26 +30,23 @@ import {
 	DialogActions,
 } from "@mui/material";
 import {
-	MessageSquare,
 	Send,
 	HelpCircle,
 	ChevronDown,
 	Search,
 	BookOpen,
 	MessageCircle,
-	Clock,
 	Package,
 	CreditCard,
 	Truck,
 	Shield,
-	Sparkles,
 	Bot,
 	Trash2,
 } from "lucide-react";
 import Sidebar from "../../components/sidebar";
 import Footer from "../../components/footer";
 import { useMemberSupport, useMemberSupportChat } from "../../hooks/use-member-support";
-import type { TicketStatus, TicketPriority } from "../../types/support";
+import type { TicketStatus } from "../../types/support";
 
 // FAQ Data
 const faqCategories = [
@@ -151,18 +144,30 @@ const faqCategories = [
 	}
 ];
 
+interface TicketItemType {
+	ticketNumber: string;
+	unreadCount: number;
+	subject: string;
+	status: TicketStatus;
+	lastMessageTime?: string | Date;
+	createdAt: string | Date;
+	id: string;
+	handledBy?: string;
+	escalated?: boolean;
+}
+
 function TicketListItem({ 
 	ticket, 
 	isSelected, 
 	onClick, 
 	onDelete 
 }: { 
-	ticket: any; 
+	ticket: TicketItemType; 
 	isSelected: boolean; 
 	onClick: () => void;
 	onDelete: (e: React.MouseEvent) => void;
 }) {
-	const statusColors: Record<TicketStatus, string> = {
+	const statusColors: Record<TicketStatus, "default" | "primary" | "secondary" | "error" | "info" | "success" | "warning"> = {
 		open: "error",
 		"in-progress": "warning",
 		resolved: "success",
@@ -184,9 +189,11 @@ function TicketListItem({
 			}}
 		>
 			<ListItemText
+				primaryTypographyProps={{ component: "div" }}
+				secondaryTypographyProps={{ component: "div" }}
 				primary={
 					<Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
-						<Typography variant="subtitle2" component="span" fontWeight={700} sx={{ flex: 1 }}>
+						<Typography variant="subtitle2" component="div" fontWeight={700} sx={{ flex: 1 }}>
 							{ticket.ticketNumber}
 						</Typography>
 						{ticket.unreadCount > 0 && (
@@ -195,19 +202,19 @@ function TicketListItem({
 					</Stack>
 				}
 				secondary={
-					<Box component="span" sx={{ display: "block" }}>
-						<Typography variant="body2" component="span" noWrap sx={{ mb: 0.5, display: "block" }}>
+					<Box component="div" sx={{ display: "block" }}>
+						<Typography variant="body2" component="div" noWrap sx={{ mb: 0.5, display: "block" }}>
 							{ticket.subject}
 						</Typography>
-						<Stack direction="row" spacing={0.5} flexWrap="wrap" gap={0.5} component="span" sx={{ display: "flex" }}>
+						<Stack direction="row" spacing={0.5} flexWrap="wrap" gap={0.5} component="div" sx={{ display: "flex" }}>
 							<Chip
 								label={ticket.status.replace("-", " ")}
 								size="small"
-								color={statusColors[ticket.status] as any}
+								color={statusColors[ticket.status]}
 								sx={{ textTransform: "capitalize", height: 20, fontSize: 10 }}
 							/>
 						</Stack>
-						<Typography variant="caption" component="span" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+						<Typography variant="caption" component="div" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
 							{new Date(ticket.lastMessageTime || ticket.createdAt).toLocaleString()}
 						</Typography>
 					</Box>
@@ -234,8 +241,8 @@ function TicketListItem({
 }
 
 export default function MemberSupportPage() {
-	const { tickets, isLoading, error, fetchTickets, createTicket, deleteTicket } = useMemberSupport();
-	const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
+	const { tickets, isLoading, error, fetchTickets, deleteTicket } = useMemberSupport();
+	const [selectedTicket, setSelectedTicket] = useState<TicketItemType | null>(null);
 	const [mainTab, setMainTab] = useState(1); // Start with Support Tickets tab
 	const [faqSearch, setFaqSearch] = useState("");
 	const [selectedCategory, setSelectedCategory] = useState("orders");
@@ -249,7 +256,7 @@ export default function MemberSupportPage() {
 
 	// Delete confirmation dialog state
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-	const [ticketToDelete, setTicketToDelete] = useState<any | null>(null);
+	const [ticketToDelete, setTicketToDelete] = useState<TicketItemType | null>(null);
 	const [isDeleting, setIsDeleting] = useState(false);
 
 	const { messages, isSending, sendMessage } = useMemberSupportChat(selectedTicket?.id || null);
@@ -377,7 +384,7 @@ export default function MemberSupportPage() {
 	};
 
 	// Handle delete conversation
-	const handleDeleteClick = (e: React.MouseEvent, ticket: any) => {
+	const handleDeleteClick = (e: React.MouseEvent, ticket: TicketItemType) => {
 		e.stopPropagation(); // Prevent selecting the ticket
 		setTicketToDelete(ticket);
 		setDeleteDialogOpen(true);
@@ -435,7 +442,7 @@ export default function MemberSupportPage() {
 	];
 
 	return (
-		<Box sx={{ minHeight: "100dvh", height: { xs: "auto", md: "100dvh" }, display: "flex", bgcolor: "background.default", overflow: { xs: "visible", md: "hidden" } }}>
+		<Box sx={{ minHeight: "100dvh", display: "flex", bgcolor: "background.default" }}>
 			<Sidebar />
 
 			<Box
@@ -443,9 +450,6 @@ export default function MemberSupportPage() {
 				sx={{
 					flex: 1,
 					minWidth: 0,
-					height: { xs: "auto", md: "100dvh" },
-					overflowY: "auto",
-					overflowX: "hidden",
 					display: "flex",
 					flexDirection: "column",
 				}}
@@ -527,7 +531,7 @@ export default function MemberSupportPage() {
 												Still need help?
 											</Typography>
 											<Typography variant="caption" color="text.secondary">
-												Can't find what you're looking for? Chat with our support team.
+												Can&apos;t find what you&apos;re looking for? Chat with our support team.
 											</Typography>
 											<Button
 												size="small"
@@ -569,7 +573,7 @@ export default function MemberSupportPage() {
 												<Box textAlign="center" py={4}>
 													<Search size={48} style={{ opacity: 0.3 }} />
 													<Typography variant="body2" color="text.secondary" mt={2}>
-														No results found for "{faqSearch}"
+														No results found for &quot;{faqSearch}&quot;
 													</Typography>
 												</Box>
 											) : (
@@ -632,7 +636,7 @@ export default function MemberSupportPage() {
 						<Grid container spacing={2}>
 							{/* Tickets List */}
 							<Grid size={{ xs: 12, md: 4 }}>
-								<Paper elevation={0} sx={{ border: 1, borderColor: "divider", height: "calc(100vh - 350px)", display: "flex", flexDirection: "column" }}>
+								<Paper elevation={0} sx={{ border: 1, borderColor: "divider", height: "calc(100vh - 290px)", display: "flex", flexDirection: "column" }}>
 									<Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
 										<Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
 											<Typography variant="h6" fontWeight={700}>
@@ -699,7 +703,7 @@ export default function MemberSupportPage() {
 							{/* Chat Area */}
 							<Grid size={{ xs: 12, md: 8 }}>
 								{selectedTicket ? (
-									<Paper elevation={0} sx={{ border: 1, borderColor: "divider", height: "calc(100vh - 350px)", display: "flex", flexDirection: "column" }}>
+									<Paper elevation={0} sx={{ border: 1, borderColor: "divider", height: "calc(100vh - 290px)", display: "flex", flexDirection: "column" }}>
 										{/* Chat Header */}
 										<Box sx={{ p: 2, borderBottom: 1, borderColor: "divider", bgcolor: "background.paper" }}>
 											<Stack direction="row" alignItems="center" justifyContent="space-between">
@@ -824,21 +828,40 @@ export default function MemberSupportPage() {
 												{selectedTicket.handledBy === 'ai' && !selectedTicket.escalated && (
 													<Alert severity="info" icon={<Bot size={18} />} sx={{ mb: 1.5 }}>
 														<Typography variant="caption" fontWeight={600}>
-															You're chatting with our AI Assistant. If needed, we'll connect you with a human agent.
+															You&apos;re chatting with our AI Assistant. If needed, we&apos;ll connect you with a human agent.
 														</Typography>
 													</Alert>
 												)}
 												{selectedTicket.escalated && (
 													<Alert severity="success" sx={{ mb: 1.5 }}>
 														<Typography variant="caption" fontWeight={600}>
-															Your conversation has been escalated to our support team. They'll respond shortly.
+															Your conversation has been escalated to our support team. They&apos;ll respond shortly.
 														</Typography>
 													</Alert>
 												)}
-												<Stack direction="row" spacing={1}>
+												<Paper
+													elevation={0}
+													sx={{
+														p: '2px 4px',
+														display: 'flex',
+														alignItems: 'flex-end',
+														width: '100%',
+														borderRadius: 6,
+														border: 1,
+														borderColor: 'divider',
+														bgcolor: 'background.default',
+														boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
+														transition: 'all 0.2s',
+														'&:focus-within': {
+															borderColor: 'primary.main',
+															boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+														}
+													}}
+												>
 													<TextField
 														fullWidth
-														size="small"
+														multiline
+														maxRows={3}
 														placeholder="Type your message..."
 														value={messageInput}
 														onChange={(e) => setMessageInput(e.target.value)}
@@ -848,19 +871,32 @@ export default function MemberSupportPage() {
 																handleSendMessage();
 															}
 														}}
-														multiline
-														maxRows={3}
 														disabled={isSending || aiTyping}
+														sx={{
+															ml: 2,
+															flex: 1,
+															"& .MuiOutlinedInput-root": {
+																"& fieldset": { border: "none" },
+																p: 1.5
+															}
+														}}
 													/>
 													<Button
 														variant="contained"
 														onClick={handleSendMessage}
 														disabled={!messageInput.trim() || isSending || aiTyping}
-														sx={{ minWidth: 100 }}
+														sx={{ 
+															minWidth: 48, 
+															width: 48, 
+															height: 48, 
+															borderRadius: '50%',
+															m: 0.5,
+															mb: '4px'
+														}}
 													>
-														{(isSending || aiTyping) ? <CircularProgress size={20} /> : <Send size={18} />}
+														{(isSending || aiTyping) ? <CircularProgress size={20} color="inherit" /> : <Send size={20} style={{ marginLeft: 2 }} />}
 													</Button>
-												</Stack>
+												</Paper>
 											</Box>
 										) : (
 											<Box sx={{ p: 2, borderTop: 1, borderColor: "divider", bgcolor: "grey.100" }}>
@@ -876,33 +912,43 @@ export default function MemberSupportPage() {
 										sx={{
 											border: 1,
 											borderColor: "divider",
-											height: "calc(100vh - 350px)",
+											borderRadius: 4,
+											overflow: "hidden",
+											height: "calc(100vh - 290px)",
 											display: "flex",
 											flexDirection: "column",
+											boxShadow: "0 8px 32px rgba(0,0,0,0.04)"
 										}}
 									>
 										{/* Welcome Header */}
-										<Box sx={{ p: 3, borderBottom: 1, borderColor: "divider", bgcolor: "primary.50" }}>
-											<Stack direction="row" alignItems="center" spacing={2}>
+										<Box sx={{ 
+											p: { xs: 2.5, md: 3 }, 
+											borderBottom: 1, 
+											borderColor: "divider", 
+											background: (theme) => `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+											color: "primary.contrastText" 
+										}}>
+											<Stack direction="row" alignItems="center" spacing={2.5}>
 												<Box
 													sx={{
-														width: 48,
-														height: 48,
+														width: 56,
+														height: 56,
 														borderRadius: "50%",
-														bgcolor: "primary.main",
+														bgcolor: "rgba(255,255,255,0.2)",
 														display: "flex",
 														alignItems: "center",
 														justifyContent: "center",
+														boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
 													}}
 												>
-													<Bot size={24} color="white" />
+													<Bot size={32} color="white" />
 												</Box>
 												<Box>
-													<Typography variant="h6" fontWeight={700}>
+													<Typography variant="h5" fontWeight={800} mb={0.5}>
 														How can we help you today?
 													</Typography>
-													<Typography variant="body2" color="text.secondary">
-														Chat with our AI Assistant for instant help, or get connected to our support team
+													<Typography variant="body2" sx={{ opacity: 0.9 }}>
+														Chat with our AI Assistant for instant help, or get connected to our support team.
 													</Typography>
 												</Box>
 											</Stack>
@@ -910,11 +956,11 @@ export default function MemberSupportPage() {
 
 										{/* Quick Questions */}
 										{showQuickOptions && (
-											<Box sx={{ p: 3 }}>
-												<Typography variant="subtitle2" fontWeight={700} mb={2}>
-													Quick questions:
+											<Box sx={{ p: { xs: 2, md: 3 }, flex: 1, overflowY: "auto" }}>
+												<Typography variant="subtitle2" fontWeight={700} color="text.secondary" mb={1.5}>
+													Suggested topics
 												</Typography>
-												<Grid container spacing={1}>
+												<Grid container spacing={1.5}>
 													{quickQuestions.map((question, index) => (
 														<Grid size={{ xs: 12, sm: 6 }} key={index}>
 															<Button
@@ -926,6 +972,19 @@ export default function MemberSupportPage() {
 																	textAlign: "left",
 																	textTransform: "none",
 																	py: 1.5,
+																	px: 2,
+																	borderRadius: 3,
+																	bgcolor: "background.paper",
+																	borderColor: "divider",
+																	color: "text.primary",
+																	fontWeight: 600,
+																	transition: "all 0.2s",
+																	"&:hover": {
+																		borderColor: "primary.main",
+																		bgcolor: "primary.50",
+																		transform: "translateY(-2px)",
+																		boxShadow: "0 4px 12px rgba(0,0,0,0.05)"
+																	}
 																}}
 															>
 																{question}
@@ -937,16 +996,31 @@ export default function MemberSupportPage() {
 										)}
 
 										{/* Message Input Area */}
-										<Box sx={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-end", p: 3 }}>
-											<Box>
-												<Typography variant="subtitle2" fontWeight={700} mb={1}>
-													Describe your question or issue:
-												</Typography>
+										<Box sx={{ p: { xs: 2, md: 2.5 }, bgcolor: "background.paper", borderTop: 1, borderColor: "divider", mt: "auto" }}>
+											<Paper
+												elevation={0}
+												sx={{
+													p: '2px 4px',
+													display: 'flex',
+													alignItems: 'center',
+													width: '100%',
+													borderRadius: 6,
+													border: 1,
+													borderColor: 'divider',
+													bgcolor: 'background.default',
+													boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
+													transition: 'all 0.2s',
+													'&:focus-within': {
+														borderColor: 'primary.main',
+														boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+													}
+												}}
+											>
 												<TextField
 													fullWidth
 													multiline
-													rows={4}
-													placeholder="Type your message here... Press Enter to send"
+													maxRows={3}
+													placeholder="Type your message here..."
 													value={newConversationMessage}
 													onChange={(e) => setNewConversationMessage(e.target.value)}
 													onKeyDown={(e) => {
@@ -956,23 +1030,33 @@ export default function MemberSupportPage() {
 														}
 													}}
 													disabled={isCreatingTicket}
-													sx={{ mb: 2 }}
+													sx={{
+														ml: 2,
+														flex: 1,
+														"& .MuiOutlinedInput-root": {
+															"& fieldset": { border: "none" },
+															p: 1.5
+														}
+													}}
 												/>
-												<Stack direction="row" spacing={2} justifyContent="space-between" alignItems="center">
-													<Typography variant="caption" color="text.secondary">
-														Press Enter to send or Shift+Enter for new line
-													</Typography>
-													<Button
-														variant="contained"
-														size="large"
-														onClick={handleStartNewConversation}
-														disabled={!newConversationMessage.trim() || isCreatingTicket}
-														startIcon={isCreatingTicket ? <CircularProgress size={16} /> : <Send size={18} />}
-													>
-														{isCreatingTicket ? "Starting..." : "Start Conversation"}
-													</Button>
-												</Stack>
-											</Box>
+												<Button
+													variant="contained"
+													onClick={handleStartNewConversation}
+													disabled={!newConversationMessage.trim() || isCreatingTicket}
+													sx={{ 
+														minWidth: 48, 
+														width: 48, 
+														height: 48, 
+														borderRadius: '50%',
+														m: 0.5
+													}}
+												>
+													{isCreatingTicket ? <CircularProgress size={20} color="inherit" /> : <Send size={20} style={{ marginLeft: 2 }} />}
+												</Button>
+											</Paper>
+											<Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', mt: 1.5, fontWeight: 500 }}>
+												Press Enter to send or Shift+Enter for a new line
+											</Typography>
 										</Box>
 									</Paper>
 								)}

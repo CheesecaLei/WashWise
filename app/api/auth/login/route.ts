@@ -29,6 +29,7 @@ type UserDocument = {
     username?: string;
     password?: string;
     role?: string;
+    isVerified?: boolean;
 };
 
 function normalizeString(value: unknown): string {
@@ -87,6 +88,14 @@ export async function POST(request: NextRequest) {
 
         if (!isPasswordValid) {
             return NextResponse.json({ error: 'Invalid email or password.' }, { status: 401 });
+        }
+
+        // Block login for unverified accounts (strict === false to grandfather existing users)
+        if (user.isVerified === false) {
+            return NextResponse.json(
+                { error: 'Please verify your email before logging in.', unverified: true },
+                { status: 403 }
+            );
         }
 
         const userId = String(user._id);

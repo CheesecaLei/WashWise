@@ -20,6 +20,7 @@ import {
 	DialogContent,
 	DialogContentText,
 	DialogActions,
+	Alert,
 } from "@mui/material";
 import { ClipboardList } from "lucide-react";
 import Sidebar from "../../components/sidebar";
@@ -32,7 +33,7 @@ import { useServices } from "../../hooks/use-services";
 import { useOfflineStatus } from "../../hooks/use-offline-status";
 import { useOfflineQueue } from "../../providers/offline-queue-provider";
 import { toast } from "react-toastify";
-import type { ServiceIconName, ServiceKey } from "../../types/new-order";
+import type { ServiceIconName } from "../../types/new-order";
 
 function serviceIcon(iconName: ServiceIconName) {
 	switch (iconName) {
@@ -72,14 +73,13 @@ export default function NewOrderPage() {
 			.filter((service) => service.quantity > 0);
 	}, [quantities, services]);
 
+	const hasWeightWarning = useMemo(() => {
+		return selectedServices.some(s => s.unitLabel === "kg" && s.quantity < 5);
+	}, [selectedServices]);
+
 	const subtotal = selectedServices.reduce((sum, service) => sum + service.lineTotal, 0);
 	const total = subtotal + logisticsFee;
-
-	// Weight validation
-	const MAX_WEIGHT_KG = 20;
-	const totalWeight = selectedServices.reduce((sum, s) => (s.unitLabel === "kg" ? sum + (s.quantity || 0) : sum), 0);
-	const isOverweight = totalWeight > MAX_WEIGHT_KG;
-	const canProceed = selectedServices.length > 0 && !isOverweight;
+	const canProceed = selectedServices.length > 0 && !hasWeightWarning;
 
 	const handleQuantityChange = (serviceId: string, value: string) => {
 		if (value === "" || /^\d*\.?\d*$/.test(value)) {
@@ -97,10 +97,6 @@ export default function NewOrderPage() {
 	};
 
 	const executeCreateOrder = async () => {
-		if (isOverweight) {
-			toast.error(`Order exceeds maximum allowed weight of ${MAX_WEIGHT_KG} kg. Please reduce weight.`);
-			return;
-		}
 		const result = await createOrder({
 			services: selectedServices.map((s) => ({
 				id: s.id,
@@ -128,7 +124,7 @@ export default function NewOrderPage() {
 	};
 
 	return (
-		<Box sx={{ minHeight: "100dvh", height: { xs: "auto", md: "100dvh" }, display: "flex", bgcolor: "background.default", overflow: { xs: "visible", md: "hidden" } }}>
+		<Box sx={{ minHeight: "100dvh", display: "flex", bgcolor: "background.default" }}>
 			<Sidebar />
 
 			<Box
@@ -136,9 +132,6 @@ export default function NewOrderPage() {
 				sx={{
 					flex: 1,
 					minWidth: 0,
-					height: { xs: "auto", md: "100dvh" },
-					overflowY: "auto",
-					overflowX: "hidden",
 					display: "flex",
 					flexDirection: "column",
 				}}
@@ -147,7 +140,7 @@ export default function NewOrderPage() {
 					<Grid container spacing={1.5}>
 						<Grid size={{ xs: 12, lg: 8.4 }}>
 							<Typography variant="h5" sx={{ fontWeight: 700, fontSize: { xs: 18, md: 22 }, mb: 0.3 }}>
-								What do you need washed today?
+								Laundry Services
 							</Typography>
 							<Typography color="text.secondary" sx={{ mb: 1.5, fontSize: 12 }}>
 								Select the services you need and provide an estimate. Final weighing will be done at the
@@ -179,7 +172,7 @@ export default function NewOrderPage() {
 															</Typography>
 														</Box>
 													</Stack>
-													<Typography sx={{ fontWeight: 700, color: "primary.main", fontSize: 12, whiteSpace: "nowrap" }}>
+													<Typography sx={{ fontWeight: 800, color: "primary.main", fontSize: 20, whiteSpace: "nowrap" }}>
 														{formatPeso(service.price)} / {service.unitLabel}
 													</Typography>
 												</Stack>
@@ -255,19 +248,6 @@ export default function NewOrderPage() {
 									<Stack spacing={0.8}>
 										<Stack direction="row" justifyContent="space-between">
 											<Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>
-												Estimated Weight
-											</Typography>
-											<Typography variant="caption" sx={{ fontWeight: 700, fontSize: 10 }}>
-												{totalWeight} kg
-											</Typography>
-										</Stack>
-										{isOverweight && (
-											<Typography color="error" variant="caption" sx={{ display: "block", textAlign: "center", mb: 1 }}>
-												Order exceeds maximum allowed weight of {MAX_WEIGHT_KG} kg. Reduce weight to continue.
-											</Typography>
-										)}
-										<Stack direction="row" justifyContent="space-between">
-											<Typography variant="caption" color="text.secondary" sx={{ fontSize: 10 }}>
 												Subtotal
 											</Typography>
 											<Typography variant="caption" sx={{ fontWeight: 700, fontSize: 10 }}>
@@ -291,6 +271,12 @@ export default function NewOrderPage() {
 										</Stack>
 									</Stack>
 
+									{hasWeightWarning && (
+										<Alert severity="warning" sx={{ mt: 1.5, mb: 1, py: 0.25, px: 1, "& .MuiAlert-message": { fontSize: 10 } }}>
+											Minimum weight is 5 kg per service.
+										</Alert>
+									)}
+ 
 									{apiError && (
 										<Typography color="error" variant="caption" sx={{ display: "block", textAlign: "center", mb: 1 }}>
 											{apiError}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import {
 	ArrowLeft,
@@ -24,7 +24,7 @@ function PlacedOrderDetails() {
 	const searchParams = useSearchParams();
 	const transactionId = searchParams.get("transactionId");
 	const { navigate } = useLayoutShell();
-	const { fetchTransaction, isLoadingOrder, apiError } = useOrder();
+	const { fetchTransaction, isLoadingOrder } = useOrder();
 	const [data, setData] = useState<FetchTransactionResponse["transaction"] | null>(null);
 
 	useEffect(() => {
@@ -61,7 +61,28 @@ function PlacedOrderDetails() {
 
 	return (
 		<Box sx={{ px: { xs: 1.5, sm: 2.5, md: 3.5 }, py: { xs: 1.5, md: 3 }, flex: 1 }}>
-			<Stack alignItems="center" textAlign="center" spacing={1} mb={{ xs: 2, md: 3 }}>
+			<style>{`
+				@media print {
+					body, html, main {
+						background: white !important;
+						color: black !important;
+					}
+					aside, footer, .no-print, button, .MuiButton-root {
+						display: none !important;
+					}
+					#print-invoice-card {
+						border: 1px solid #ddd !important;
+						box-shadow: none !important;
+						margin: 0 !important;
+						padding: 20px !important;
+						width: 100% !important;
+						position: absolute;
+						left: 0;
+						top: 0;
+					}
+				}
+			`}</style>
+			<Stack className="no-print" alignItems="center" textAlign="center" spacing={1} mb={{ xs: 2, md: 3 }}>
 				<BadgeCheck size={38} color="#10b981" />
 				<Typography variant="h4" sx={{ fontWeight: 800, fontSize: { xs: 24, sm: 30, md: 40 } }}>
 					Order Placed Successfully!
@@ -73,7 +94,7 @@ function PlacedOrderDetails() {
 
 			<Grid container spacing={2}>
 				<Grid size={{ xs: 12, lg: 8 }}>
-					<Card sx={{ mb: 1.4 }}>
+					<Card id="print-invoice-card" sx={{ mb: 1.4 }}>
 						<CardContent sx={{ p: 2 }}>
 							<Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
 								<Box>
@@ -199,7 +220,7 @@ function PlacedOrderDetails() {
 					</Grid>
 				</Grid>
 
-				<Grid size={{ xs: 12, lg: 4 }}>
+				<Grid size={{ xs: 12, lg: 4 }} className="no-print">
 					<Paper
 						sx={{
 							p: 1.8,
@@ -243,10 +264,20 @@ function PlacedOrderDetails() {
 						fullWidth
 						variant="contained"
 						sx={{ mb: 1 }}
-						onClick={() => navigate("/member/my-orders")}
+						onClick={() => navigate("/member/dashboard")}
 						endIcon={<ChevronRight size={15} />}
 					>
-						Track My Order
+						Go to Dashboard
+					</Button>
+
+					<Button
+						fullWidth
+						variant="outlined"
+						sx={{ mb: 1, borderColor: "info.main", color: "info.main", "&:hover": { borderColor: "info.dark" } }}
+						onClick={() => window.print()}
+						startIcon={<span>🖨️</span>}
+					>
+						Print Receipt
 					</Button>
 
 					<Button
@@ -275,7 +306,7 @@ function PlacedOrderDetails() {
 
 export default function OrderPlacedPage() {
 	return (
-		<Box sx={{ minHeight: "100dvh", height: { xs: "auto", md: "100dvh" }, display: "flex", bgcolor: "background.default", overflow: { xs: "visible", md: "hidden" } }}>
+		<Box sx={{ minHeight: "100dvh", display: "flex", bgcolor: "background.default" }}>
 			<Sidebar />
 
 			<Box
@@ -283,9 +314,6 @@ export default function OrderPlacedPage() {
 				sx={{
 					flex: 1,
 					minWidth: 0,
-					height: { xs: "auto", md: "100dvh" },
-					overflowY: "auto",
-					overflowX: "hidden",
 					display: "flex",
 					flexDirection: "column",
 				}}

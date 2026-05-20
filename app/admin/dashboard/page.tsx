@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React from "react";
 import {
 	Box,
 	Paper,
@@ -23,12 +23,7 @@ interface ExtendedActivity extends Activity {
 	customer: string;
 }
 
-interface DashboardData {
-	stats: AdminStatCard[];
-	analytics: DashboardAnalyticsMetric[];
-	quickStats: AdminQuickStat[];
-	recentOrders: ExtendedActivity[];
-}
+
 
 function statIcon(icon: string) {
 	const iconProps = { size: 20, strokeWidth: 1.9 };
@@ -104,7 +99,7 @@ export default function AdminDashboardPage() {
 	}
 
 	return (
-		<Box sx={{ minHeight: "100dvh", height: { xs: "auto", md: "100dvh" }, display: "flex", bgcolor: "background.default", overflow: { xs: "visible", md: "hidden" } }}>
+		<Box sx={{ minHeight: "100dvh", display: "flex", bgcolor: "background.default" }}>
 			<Sidebar />
 
 			<Box
@@ -112,9 +107,6 @@ export default function AdminDashboardPage() {
 				sx={{
 					flex: 1,
 					minWidth: 0,
-					height: { xs: "auto", md: "100dvh" },
-					overflowY: "auto",
-					overflowX: "hidden",
 					display: "flex",
 					flexDirection: "column",
 				}}
@@ -166,7 +158,10 @@ export default function AdminDashboardPage() {
 												borderColor: "divider",
 												textAlign: "center",
 												height: "100%",
-												bgcolor: (theme) => alpha(theme.palette[statColor(stat.accent) as any].main, theme.palette.mode === "dark" ? 0.15 : 0.08),
+												bgcolor: (theme) => {
+													const color = statColor(stat.accent) as "primary" | "info" | "success";
+													return alpha(theme.palette[color]?.main || theme.palette.primary.main, theme.palette.mode === "dark" ? 0.15 : 0.08);
+												},
 											}}
 										>
 											<Avatar
@@ -175,7 +170,10 @@ export default function AdminDashboardPage() {
 													height: 36,
 													mx: "auto",
 													mb: 1,
-													bgcolor: (theme) => alpha(theme.palette[statColor(stat.accent) as any].main, 0.13),
+													bgcolor: (theme) => {
+														const color = statColor(stat.accent) as "primary" | "info" | "success";
+														return alpha(theme.palette[color]?.main || theme.palette.primary.main, 0.13);
+													},
 													color: `${statColor(stat.accent)}.main`,
 												}}
 											>

@@ -6,6 +6,8 @@ import type { ReportMetric, ServiceReport } from "../types/dashboard";
 export function useReports() {
     const [metrics, setMetrics] = useState<ReportMetric[]>([]);
     const [serviceReports, setServiceReports] = useState<ServiceReport[]>([]);
+    const [checkouts, setCheckouts] = useState<{ finalTotal?: number; paymentStatus?: string; createdAt?: string }[]>([]);
+    const [weightToday, setWeightToday] = useState<number>(0);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -13,13 +15,15 @@ export function useReports() {
         try {
             setLoading(true);
             const response = await fetch("/api/admin/report-gen");
-            if (!response.ok) throw new Error("Failed to fetch reports");
             const data = await response.json();
+            if (!response.ok) throw new Error(data.error || "Failed to fetch reports");
             setMetrics(data.metrics);
             setServiceReports(data.serviceReports);
+            setCheckouts(data.checkouts || []);
+            setWeightToday(data.weightToday || 0);
             setError(null);
         } catch (err) {
-            setError("Unable to load report data.");
+            setError(err instanceof Error ? err.message : "Unable to load report data.");
             console.error(err);
         } finally {
             setLoading(false);
@@ -30,27 +34,37 @@ export function useReports() {
         fetchData();
     }, [fetchData]);
 
-    const downloadExcel = () => {
-        if (serviceReports.length === 0) return;
+    const downloadExcel = (timeFilter: "all" | "month" | "week" = "all") => {
+        if (checkouts.length === 0) return;
+
+        let filteredCheckouts = checkouts;
+        const now = new Date();
+        if (timeFilter === "month") {
+            filteredCheckouts = checkouts.filter(c => {
+                if (!c.createdAt) return false;
+                const d = new Date(c.createdAt);
+                return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+            });
+        } else if (timeFilter === "week") {
+            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            filteredCheckouts = checkouts.filter(c => {
+                if (!c.createdAt) return false;
+                return new Date(c.createdAt) >= weekAgo;
+            });
+        }
 
         // Prepare CSV data with proper formatting
-        const headers = ["Service Name", "Orders", "Revenue", "Avg Value", "Growth"];
+        const headers = ["Date", "Total Price", "Payment Status"];
         
-        // Convert service reports to CSV rows
-        const rows = serviceReports.map(service => [
-            service.name,
-            service.orders.toString(),
-            service.revenue,
-            service.average,
-            service.growth
+        // Convert checkouts to CSV rows
+        const rows = filteredCheckouts.map(c => [
+            c.createdAt ? new Date(c.createdAt).toLocaleDateString() : "N/A",
+            `₱${(c.finalTotal || 0).toFixed(2)}`,
+            c.paymentStatus === "paid" ? "Realized" : "Pending"
         ]);
 
         // Create CSV content
         const csvContent = [
-            // Add title and metadata
-            [`WashWise Service Performance Report`],
-            [`Generated: ${new Date().toLocaleString()}`],
-            [], // Empty row for spacing
             // Add headers
             headers,
             // Add data rows
@@ -74,7 +88,7 @@ export function useReports() {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `washwise-service-report-${new Date().toISOString().split('T')[0]}.csv`;
+        link.download = `washwise-financial-report-${new Date().toISOString().split('T')[0]}.csv`;
         link.style.display = 'none';
         
         // Trigger download
@@ -91,6 +105,8 @@ export function useReports() {
     return {
         metrics,
         serviceReports,
+        checkouts,
+        weightToday,
         loading,
         error,
         refresh: fetchData,

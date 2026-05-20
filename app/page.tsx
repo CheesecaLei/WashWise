@@ -15,7 +15,6 @@ import {
 	useMediaQuery,
 	alpha,
 	Paper,
-	Avatar,
 	Chip,
 } from "@mui/material";
 import {
@@ -24,9 +23,7 @@ import {
 	ShieldCheck,
 	Truck,
 	ChevronRight,
-	MapPin,
 	Star,
-	CheckCircle2,
 } from "lucide-react";
 import Footer from "./components/footer";
 
@@ -101,21 +98,18 @@ export default function LandingPage() {
 			>
 				<Container maxWidth="lg">
 					<Toolbar disableGutters sx={{ justifyContent: "space-between", height: 70 }}>
-						<Stack direction="row" alignItems="center" spacing={1}>
+						<Stack direction="row" alignItems="center" spacing={1.5}>
 							<Box
+								component="img"
+								src="/WASHWISE LOGO.png"
+								alt="WashWise Logo"
 								sx={{
-									width: 40,
-									height: 40,
-									bgcolor: "primary.main",
-									borderRadius: 1.5,
-									display: "flex",
-									alignItems: "center",
-									justifyContent: "center",
-									color: "white",
+									width: 38,
+									height: 38,
+									borderRadius: 1.2,
+									objectFit: "contain"
 								}}
-							>
-								<ShoppingBag size={24} />
-							</Box>
+							/>
 							<Typography variant="h6" sx={{ fontWeight: 800, letterSpacing: -0.5 }}>
 								WashWise
 							</Typography>
@@ -345,7 +339,7 @@ export default function LandingPage() {
 									</Box>
 
 									<Stack spacing={4}>
-										{steps.map((step, idx) => (
+										{steps.map((step) => (
 											<Stack key={step.title} direction="row" spacing={3}>
 												<Box
 													sx={{

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import {
 	AlertCircle,
 	Clock,
@@ -9,10 +9,8 @@ import {
 	Phone,
 	Package,
 	Truck,
-	MapPin,
 	RefreshCcw,
 	Loader2,
-	DollarSign,
 } from "lucide-react";
 import {
 	alpha,
@@ -27,13 +25,6 @@ import {
 	Alert,
 	IconButton,
 	Chip,
-	Dialog,
-	DialogTitle,
-	DialogContent,
-	DialogContentText,
-	DialogActions,
-	Tooltip,
-	Divider,
 } from "@mui/material";
 import { toast } from "react-toastify";
 import Sidebar from "../../components/sidebar";
@@ -41,8 +32,7 @@ import Footer from "../../components/footer";
 import PremiumPagination from "../../components/pagination";
 import { pusherClient } from "../../lib/pusher-client";
 import { useOrderProgress } from "../../hooks/use-order-progress";
-import { useRecordPayment } from "../../hooks/use-record-payment";
-import type { LiveOrder, OrderStatus, ProgressStat } from "../../types/dashboard";
+import type { OrderStatus } from "../../types/dashboard";
 
 function getStatusIcon(status: OrderStatus) {
 	const iconProps = { size: 14, strokeWidth: 1.9 };
@@ -113,41 +103,13 @@ function getProgressStatIcon(icon: string) {
 }
 
 export default function ProgressDashboardPage() {
-	const { orders, stats, loading, error, updatingId, refresh: fetchData, updateStatus: handleStatusChange } = useOrderProgress();
-	const { recordPayment, isRecording } = useRecordPayment();
-	const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
-	const [selectedOrderForPayment, setSelectedOrderForPayment] = useState<LiveOrder | null>(null);
-
-	const handleRecordPayment = (order: LiveOrder) => {
-		setSelectedOrderForPayment(order);
-		setPaymentDialogOpen(true);
-	};
-
-	const executeRecordPayment = async () => {
-		if (!selectedOrderForPayment) return;
-
-		const result = await recordPayment({
-			orderId: selectedOrderForPayment.id,
-			amount: parseFloat(selectedOrderForPayment.amount.replace(/[₱,]/g, "")),
-			method: "COD",
-			notes: "Payment received by staff during delivery",
-		});
-
-		if (result.success) {
-			toast.success(`✅ Payment of ${selectedOrderForPayment.amount} recorded!`, { autoClose: 3000 });
-			fetchData();
-			setPaymentDialogOpen(false);
-			setSelectedOrderForPayment(null);
-		} else {
-			toast.error(result.error || "Failed to record payment", { autoClose: 3000 });
-		}
-	};
+	const { orders, stats, loading, error, updatingId, page, setPage, pagination, refresh: fetchData, updateStatus: handleStatusChange } = useOrderProgress();
 
 	useEffect(() => {
 		const notificationsChannel = pusherClient.subscribe("admin-notifications");
 		const updatesChannel = pusherClient.subscribe("order-updates");
 
-		notificationsChannel.bind("new-order", (data: any) => {
+		notificationsChannel.bind("new-order", (data: { orderId?: string }) => {
 			console.log("Real-time: New order for progress dashboard!", data);
 			toast.info(`New Order Received! #${data.orderId?.slice(-6).toUpperCase() || "N/A"}`, {
 				icon: <span>🧺</span>
@@ -155,10 +117,10 @@ export default function ProgressDashboardPage() {
 			fetchData();
 		});
 
-		updatesChannel.bind("order-status-updated", (data: any) => {
+		updatesChannel.bind("order-status-updated", (data: { status?: string; serviceMethod?: string; orderId?: string }) => {
 			console.log("Real-time: Order status updated!", data);
 			
-			let statusLabel = data.status;
+			let statusLabel = data.status || "";
 			if (data.status === "ready") {
 				statusLabel = data.serviceMethod === "pickup" ? "Ready for Delivery" : "Ready for Pickup";
 			} else if (data.status === "closed") {
@@ -191,7 +153,7 @@ export default function ProgressDashboardPage() {
 	const orderStatusFlow: OrderStatus[] = ["waiting", "in-progress", "ready", "out-for-delivery", "closed"];
 
 	return (
-		<Box sx={{ minHeight: "100dvh", height: { xs: "auto", md: "100dvh" }, display: "flex", bgcolor: "background.default", overflow: { xs: "visible", md: "hidden" } }}>
+		<Box sx={{ minHeight: "100dvh", display: "flex", bgcolor: "background.default" }}>
 			<Sidebar />
 
 			<Box
@@ -199,9 +161,6 @@ export default function ProgressDashboardPage() {
 				sx={{
 					flex: 1,
 					minWidth: 0,
-					height: { xs: "auto", md: "100dvh" },
-					overflowY: "auto",
-					overflowX: "hidden",
 					display: "flex",
 					flexDirection: "column",
 				}}
@@ -243,7 +202,10 @@ export default function ProgressDashboardPage() {
 												height: 36,
 												mx: "auto",
 												mb: 1,
-												bgcolor: (theme) => alpha(theme.palette[stat.color as any].main, 0.13),
+												bgcolor: (theme) => {
+													const color = stat.color as "primary" | "secondary" | "success" | "error" | "info" | "warning";
+													return alpha(theme.palette[color]?.main || theme.palette.primary.main, 0.13);
+												},
 												color: `${stat.color}.main`,
 											}}
 										>
@@ -346,7 +308,7 @@ export default function ProgressDashboardPage() {
 											Update Order Status
 										</Typography>
 
-										<Box sx={{ display: "flex", gap: 0.6, flexWrap: "wrap", mb: 1.2, alignItems: "center" }}>
+										<Box sx={{ display: "flex", gap: 0.6, flexWrap: "wrap", mb: 1.2 }}>
 											{orderStatusFlow.map(
 												(status) => {
 													// Skip out-for-delivery if not a pickup order (logistics)
@@ -355,6 +317,25 @@ export default function ProgressDashboardPage() {
 													}
 													
 													const isActive = order.status === status;
+													
+													// Enforce linear progression: only allow active status or the immediate next status
+													const isNextOrActive = (() => {
+														if (isActive) return true;
+														if (order.status === "waiting") {
+															return status === "in-progress";
+														}
+														if (order.status === "in-progress") {
+															return status === "ready";
+														}
+														if (order.status === "ready") {
+															return order.serviceMethod === "pickup" ? status === "out-for-delivery" : status === "closed";
+														}
+														if (order.status === "out-for-delivery") {
+															return status === "closed";
+														}
+														return false;
+													})();
+
 													return (
 														<Button
 															key={status}
@@ -362,7 +343,7 @@ export default function ProgressDashboardPage() {
 															variant={isActive ? "contained" : "outlined"}
 															onClick={() => handleStatusChange(order.id, status)}
 															startIcon={getStatusIcon(status)}
-															disabled={updatingId === order.id}
+															disabled={updatingId === order.id || !isNextOrActive}
 															sx={{
 																fontSize: 10,
 																py: 0.4,
@@ -380,22 +361,6 @@ export default function ProgressDashboardPage() {
 														</Button>
 													);
 												},
-											)}
-											
-											{(order.status === "ready" || order.status === "out-for-delivery") && order.paymentStatus === "unpaid" && (
-												<Tooltip title="Record payment received">
-													<Button
-														size="small"
-														variant="contained"
-														color="success"
-														onClick={() => handleRecordPayment(order)}
-														disabled={isRecording}
-														startIcon={<DollarSign size={14} />}
-														sx={{ py: 0.4, px: 0.8, fontSize: 10, fontWeight: 700, height: 28 }}
-													>
-														Record Payment
-													</Button>
-												</Tooltip>
 											)}
 										</Box>
 
@@ -431,67 +396,6 @@ export default function ProgressDashboardPage() {
 
 				<Footer />
 			</Box>
-
-			<Dialog
-				open={paymentDialogOpen}
-				onClose={() => setPaymentDialogOpen(false)}
-				PaperProps={{ sx: { borderRadius: 3, p: 1, maxWidth: 420, width: "100%" } }}
-			>
-				<DialogTitle sx={{ fontWeight: 800, fontSize: 18 }}>
-					<Stack direction="row" alignItems="center" spacing={1}>
-						<DollarSign size={22} />
-						<span>Record Payment Received</span>
-					</Stack>
-				</DialogTitle>
-				<DialogContent>
-					<DialogContentText sx={{ mb: 2.5, fontSize: 14, color: "text.secondary", mt: 1 }}>
-						Confirm payment received for Order #{selectedOrderForPayment?.orderCode}
-					</DialogContentText>
-					<Paper variant="outlined" sx={{ p: 2, bgcolor: "rgba(76, 175, 80, 0.04)", borderColor: "success.light", mb: 2 }}>
-						<Stack spacing={1}>
-							<Stack direction="row" justifyContent="space-between">
-								<Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-									Customer Name
-								</Typography>
-								<Typography variant="caption" fontWeight={700} sx={{ fontSize: 13 }}>
-									{selectedOrderForPayment?.customerName}
-								</Typography>
-							</Stack>
-							<Stack direction="row" justifyContent="space-between">
-								<Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-									Payment Method
-								</Typography>
-								<Typography variant="caption" fontWeight={700} sx={{ fontSize: 13 }}>
-									Cash on Delivery (COD)
-								</Typography>
-							</Stack>
-							<Divider sx={{ my: 0.5 }} />
-							<Stack direction="row" justifyContent="space-between">
-								<Typography sx={{ fontWeight: 700, fontSize: 13 }}>Amount Received</Typography>
-								<Typography sx={{ fontWeight: 800, color: "success.main", fontSize: 16 }}>
-									{selectedOrderForPayment?.amount}
-								</Typography>
-							</Stack>
-						</Stack>
-					</Paper>
-				</DialogContent>
-				<DialogActions sx={{ px: 3, pb: 2 }}>
-					<Button onClick={() => setPaymentDialogOpen(false)} color="inherit" size="small">
-						Cancel
-					</Button>
-					<Button
-						onClick={executeRecordPayment}
-						variant="contained"
-						color="success"
-						autoFocus
-						size="small"
-						disabled={isRecording}
-						sx={{ borderRadius: 2 }}
-					>
-						{isRecording ? "Recording..." : "Confirm Payment"}
-					</Button>
-				</DialogActions>
-			</Dialog>
 		</Box>
 	);
 }

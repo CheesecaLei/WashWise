@@ -270,8 +270,10 @@ serwist.addEventListeners();
 
 // ─── Web Push Event Listeners ──────────────────────────────────────────────────
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const sw = self as any;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 sw.addEventListener("push", (event: any) => {
   const data = event.data?.json() ?? {};
   const title = data.title || "WashWise Update";
@@ -287,11 +289,13 @@ sw.addEventListener("push", (event: any) => {
   event.waitUntil(sw.registration.showNotification(title, options));
 });
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 sw.addEventListener("notificationclick", (event: any) => {
   event.notification.close();
   const urlToOpen = new URL(event.notification.data.url, sw.location.origin).href;
 
   event.waitUntil(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     sw.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients: any[]) => {
       for (let i = 0; i < windowClients.length; i++) {
         const client = windowClients[i];

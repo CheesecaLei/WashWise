@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React from "react";
 import { TrendingUp, DollarSign, Users, Eye, Download, RefreshCcw } from "lucide-react";
 import {
 	alpha,
@@ -23,7 +23,7 @@ import {
 import Sidebar from "../../components/sidebar";
 import Footer from "../../components/footer";
 import { useReports } from "../../hooks/use-reports";
-import type { ReportMetricIcon, ReportMetric, ServiceReport } from "../../types/dashboard";
+import type { ReportMetricIcon } from "../../types/dashboard";
 
 function getMetricIcon(icon: ReportMetricIcon | string) {
 	const iconProps = { size: 18, strokeWidth: 1.9 };
@@ -43,7 +43,7 @@ function getMetricIcon(icon: ReportMetricIcon | string) {
 }
 
 export default function ReportPage() {
-	const { metrics, serviceReports, loading, error, refresh: fetchReports, downloadExcel } = useReports();
+	const { metrics, serviceReports, weightToday, loading, error, refresh: fetchReports, downloadExcel } = useReports();
 
 	if (loading && metrics.length === 0) {
 		return (
@@ -57,7 +57,7 @@ export default function ReportPage() {
 	}
 
 	return (
-		<Box sx={{ minHeight: "100dvh", height: { xs: "auto", md: "100dvh" }, display: "flex", bgcolor: "background.default", overflow: { xs: "visible", md: "hidden" } }}>
+		<Box sx={{ minHeight: "100dvh", display: "flex", bgcolor: "background.default" }}>
 			<Sidebar />
 
 			<Box
@@ -65,9 +65,6 @@ export default function ReportPage() {
 				sx={{
 					flex: 1,
 					minWidth: 0,
-					height: { xs: "auto", md: "100dvh" },
-					overflowY: "auto",
-					overflowX: "hidden",
 					display: "flex",
 					flexDirection: "column",
 				}}
@@ -137,6 +134,56 @@ export default function ReportPage() {
 						))}
 					</Grid>
 
+					{/* Weight Utilization Gauge */}
+					<Paper 
+						elevation={0} 
+						sx={{ 
+							p: 2.5, 
+							mb: 2.5, 
+							borderRadius: 1.5, 
+							border: 1, 
+							borderColor: "divider",
+							background: "linear-gradient(135deg, rgba(2, 132, 199, 0.03) 0%, rgba(2, 132, 199, 0.07) 100%)",
+						}}
+					>
+						<Stack spacing={1.5}>
+							<Stack direction="row" justifyContent="space-between" alignItems="center">
+								<Box>
+									<Typography sx={{ fontWeight: 800, fontSize: 15, color: "text.primary" }}>
+										Daily Processed Weight Utilization
+									</Typography>
+									<Typography variant="caption" color="text.secondary">
+										Active processed laundry weight against facility daily capacity limit (100 kg)
+									</Typography>
+								</Box>
+								<Typography sx={{ fontWeight: 800, fontSize: 16, color: "primary.main" }}>
+									{weightToday || 0} kg / 100 kg
+								</Typography>
+							</Stack>
+							<Box sx={{ width: "100%", bgcolor: alpha("#0284c7", 0.1), borderRadius: 2, height: 10, overflow: "hidden" }}>
+								<Box 
+									sx={{ 
+										width: `${Math.min(100, ((weightToday || 0) / 100) * 100)}%`, 
+										bgcolor: (weightToday || 0) > 90 ? "error.main" : (weightToday || 0) > 75 ? "warning.main" : "primary.main", 
+										height: "100%",
+										transition: "width 0.5s ease-in-out",
+										borderRadius: 2
+									}} 
+								/>
+							</Box>
+							<Stack direction="row" justifyContent="space-between">
+								<Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600 }}>
+									{Math.round(((weightToday || 0) / 100) * 100)}% Capacity Utilized
+								</Typography>
+								{(weightToday || 0) >= 100 && (
+									<Typography variant="caption" sx={{ color: "error.main", fontWeight: 700 }}>
+										⚠️ Capacity Limit Reached!
+									</Typography>
+								)}
+							</Stack>
+						</Stack>
+					</Paper>
+
 					<Paper elevation={0} sx={{ border: 1, borderColor: "divider", borderRadius: 1.5, overflow: "hidden" }}>
 						<Box sx={{ p: 2, display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: 1, borderColor: "divider", bgcolor: "background.paper" }}>
 							<Typography variant="h6" sx={{ fontWeight: 700, fontSize: 16 }}>
@@ -146,7 +193,7 @@ export default function ReportPage() {
 								size="small"
 								variant="outlined"
 								startIcon={<Download size={14} />}
-								onClick={downloadExcel}
+								onClick={() => downloadExcel()}
 								sx={{ fontSize: 11 }}
 								disabled={serviceReports.length === 0}
 							>

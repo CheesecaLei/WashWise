@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CircleUserRound, ClipboardList, MapPin, Receipt, UserRound, Waves, ShoppingBasket, CircleQuestionMark, LayoutDashboard, FileText, Users, TrendingUp, Activity, Settings2, CalendarDays, Gift } from "lucide-react";
+import { CircleUserRound, ClipboardList, MapPin, Receipt, UserRound, ShoppingBasket, CircleQuestionMark, LayoutDashboard, FileText, Users, TrendingUp, Activity, Settings2, CalendarDays, Gift } from "lucide-react";
 import {
 	Alert,
 	Avatar,
@@ -25,6 +25,7 @@ import {
 } from "@mui/material";
 import WifiOffIcon from "@mui/icons-material/WifiOff";
 import { usePathname } from "next/navigation";
+import Link from "next/link";
 import { useLogout } from "../hooks/use-logout";
 import { useLayoutShell } from "../providers/layout-shell-provider";
 import { useOfflineStatus } from "../hooks/use-offline-status";
@@ -71,7 +72,7 @@ function SidebarIcon({ icon, size = 16 }: { icon: SidebarIconName; size?: number
     
 // }
 
-export default function Sidebar({ isAdmin: propIsAdmin }: { isAdmin?: boolean }) {
+export default function Sidebar({ isAdmin: _isAdmin }: { isAdmin?: boolean }) {
 	const pathname = usePathname();
 	const isOffline = useOfflineStatus();
 	const { fetchProfile } = useProfile();
@@ -166,8 +167,8 @@ export default function Sidebar({ isAdmin: propIsAdmin }: { isAdmin?: boolean })
 					onClick={toggleSidebar}
 					sx={{ cursor: "pointer", borderRadius: 1, px: 0.5, py: 0.3 }}
 				>
-					<Avatar sx={{ bgcolor: "primary.main", width: 30, height: 30 }}>
-						<Waves size={16} />
+					<Avatar sx={{ bgcolor: "transparent", width: 30, height: 30, borderRadius: 1 }}>
+						<Box component="img" src="/WASHWISE_LOGO-removebg-preview.png" alt="WashWise Logo" sx={{ width: "100%", height: "100%", objectFit: "contain" }} />
 					</Avatar>
 					{!compactSidebar && (
 						<Typography variant="h6" sx={{ fontSize: 22, fontWeight: 700, color: "primary.main" }}>
@@ -215,9 +216,11 @@ export default function Sidebar({ isAdmin: propIsAdmin }: { isAdmin?: boolean })
 						>
 							<span>
 								<ListItemButton
+									component={Link}
+									href={item.href}
 									selected={isItemActive(item.href)}
 									disabled={isDisabled}
-									onClick={() => !isDisabled && navigate(item.href)}
+									onClick={(e: any) => { if (isDisabled) e.preventDefault(); }}
 									sx={{
 										borderRadius: 0.5,
 										mb: compactSidebar ? 1.1 : 0.4,
@@ -263,9 +266,11 @@ export default function Sidebar({ isAdmin: propIsAdmin }: { isAdmin?: boolean })
 					>
 						<span>
 							<ListItemButton
+								component={Link}
+								href={item.href}
 								selected={isItemActive(item.href)}
 								disabled={isOffline}
-								onClick={() => !isOffline && navigate(item.href)}
+								onClick={(e: any) => { if (isOffline) e.preventDefault(); }}
 								sx={{
 									borderRadius: 0.5,
 									mb: compactSidebar ? 1.1 : 0.4,

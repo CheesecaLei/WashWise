@@ -95,6 +95,7 @@ export type LoginRequestResult =
 		ok: false;
 		error: string;
 		status: number;
+		unverified?: boolean;
 	  };
 
 export type LogoutApiSuccessResponse = {

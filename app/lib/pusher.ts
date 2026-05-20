@@ -4,6 +4,7 @@ declare global {
   var pusherServer: Pusher | undefined;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const PusherClass = (Pusher as any).default || Pusher;
 
 export const pusherServer = globalThis.pusherServer || new PusherClass({

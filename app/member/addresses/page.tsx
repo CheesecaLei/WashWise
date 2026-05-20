@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import {
 	BadgePlus,
 	CheckCircle2,
@@ -11,13 +10,12 @@ import {
 	MapPin,
 	PackageCheck,
 	Trash2,
-	Truck,
 	Zap,
 } from "lucide-react";
+import Link from "next/link";
 import {
 	HomeOutlined,
 	LocationCityOutlined,
-	LocationOnOutlined,
 } from "@mui/icons-material";
 import {
 	alpha,
@@ -40,11 +38,12 @@ import {
 } from "@mui/material";
 import Sidebar from "../../components/sidebar";
 import Footer from "../../components/footer";
-import { useAddresses, type SavedAddress, type ApiResponse } from "../../hooks/use-addresses";
+import { useAddresses, type SavedAddress } from "../../hooks/use-addresses";
 import { logisticsTipsMockData } from "../../data/addresses";
 import {
 	buildSignupFormattedAddress,
 	olongapoBarangays,
+	olongapoStreets,
 	signupFormLabels,
 	signupReadonlyAddress,
 } from "../../data/auth";
@@ -76,12 +75,21 @@ export default function AddressesPage() {
 	}, [fetchAddresses]);
 
 	useEffect(() => {
-		loadAddresses();
+		let isMounted = true;
+		const init = async () => {
+			if (isMounted) {
+				await loadAddresses();
+			}
+		};
+		init();
+		return () => {
+			isMounted = false;
+		};
 	}, [loadAddresses]);
 
 	const activeAddress = addresses.find((a) => a.isActive);
 	const defaultAddress = addresses.find((a) => a.isDefault);
-	const activeCount = addresses.filter((a) => a.isActive).length;
+
 
 	const handleSetActive = async (addressId: string) => {
 		// Optimistic toggle
@@ -191,15 +199,7 @@ export default function AddressesPage() {
 
 	return (
 		<>
-			<Box
-				sx={{
-					minHeight: "100dvh",
-					height: { xs: "auto", md: "100dvh" },
-					display: "flex",
-					bgcolor: "background.default",
-					overflow: { xs: "visible", md: "hidden" },
-				}}
-			>
+			<Box sx={{ minHeight: "100dvh", display: "flex", bgcolor: "background.default" }}>
 				<Sidebar />
 
 				<Box
@@ -207,9 +207,6 @@ export default function AddressesPage() {
 					sx={{
 						flex: 1,
 						minWidth: 0,
-						height: { xs: "auto", md: "100dvh" },
-						overflowY: "auto",
-						overflowX: "hidden",
 						display: "flex",
 						flexDirection: "column",
 					}}
@@ -516,12 +513,11 @@ export default function AddressesPage() {
 							</Typography>
 						</Divider>
 
-						<Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.5 }}>
-							We use your location details to assign nearby pickup and delivery routes. {" "}
-							<Typography component={Link} href="/member/privacy" variant="caption" sx={{ fontWeight: 700, textDecoration: "none" }}>
+						<Typography variant="caption" color="text.secondary" sx={{ mb: 1 }}>
+							We use your address to find nearby stores and schedule pickup.{' '}
+							<Typography component={Link} href="/privacy" variant="caption" sx={{ fontWeight: 700, textDecoration: 'none', color: 'primary.main' }}>
 								Read our Privacy Policy
 							</Typography>
-							.
 						</Typography>
 
 						<TextField
@@ -541,20 +537,20 @@ export default function AddressesPage() {
 						/>
 
 						<TextField
+							select
 							fullWidth
 							required
 							label={signupFormLabels.street}
 							size="small"
 							value={newStreet}
 							onChange={(event) => setNewStreet(event.target.value)}
-							InputProps={{
-								startAdornment: (
-									<InputAdornment position="start">
-										<LocationOnOutlined fontSize="small" />
-									</InputAdornment>
-								),
-							}}
-						/>
+						>
+							{olongapoStreets.map((st) => (
+								<MenuItem key={st} value={st}>
+									{st}
+								</MenuItem>
+							))}
+						</TextField>
 
 						<TextField
 							select

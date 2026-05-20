@@ -24,6 +24,7 @@ async function pruneExpiredSubscription(endpoint: string): Promise<void> {
     const db = await getDb();
     const result = await db.collection('users').updateMany(
       { 'pushSubscriptions.endpoint': endpoint },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       { $pull: { pushSubscriptions: { endpoint } } as any }
     );
     if (result.modifiedCount > 0) {
@@ -45,9 +46,9 @@ export const sendPushNotification = async (
   
   try {
     await webpush.sendNotification(subscription, payload);
-  } catch (error: any) {
+  } catch (error) {
     // 410 Gone = subscription expired or user unsubscribed — remove it from DB
-    if (error?.statusCode === 410) {
+    if ((error as { statusCode?: number })?.statusCode === 410) {
       console.warn(`[Push] ⚠️ Subscription expired (410). Removing from DB: ${subscription.endpoint.slice(-30)}`);
       await pruneExpiredSubscription(subscription.endpoint);
     } else {
@@ -58,7 +59,7 @@ export const sendPushNotification = async (
 };
 
 export const broadcastToSubscriptions = async (
-  subscriptions: any[],
+  subscriptions: webpush.PushSubscription[],
   payload: { title: string; body: string; url?: string }
 ) => {
   if (!subscriptions || subscriptions.length === 0) return;

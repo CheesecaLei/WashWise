@@ -2,16 +2,13 @@
 
 import {
 	Box,
-	Container,
 	Typography,
 	Paper,
 	Grid,
 	LinearProgress,
 	Stack,
 	Avatar,
-	Chip,
 	Button,
-	Divider,
 	CircularProgress,
 	Alert,
 	Stepper,
@@ -25,7 +22,6 @@ import {
 	Gift,
 	Trophy,
 	History,
-	ArrowRight,
 	CheckCircle2,
 	Lock,
 	Star,
@@ -38,7 +34,7 @@ import PremiumPagination from "../../components/pagination";
 import { useRewards } from "../../hooks/use-rewards";
 import { rewardsMilestonesData } from "../../data/rewards";
 import { alpha } from "@mui/material/styles";
-import { formatPeso } from "../../lib/currency";
+
 
 const ColorlibConnector = styled(StepConnector)(({ theme }) => ({
 	[`&.${stepConnectorClasses.alternativeLabel}`]: {
@@ -88,7 +84,14 @@ const ColorlibStepIconRoot = styled("div")<{
 	}),
 }));
 
-function ColorlibStepIcon(props: any) {
+interface ColorlibStepIconProps {
+	active?: boolean;
+	completed?: boolean;
+	className?: string;
+	icon: React.ReactNode;
+}
+
+function ColorlibStepIcon(props: ColorlibStepIconProps) {
 	const { active, completed, className, icon } = props;
 
 	const icons: { [index: string]: React.ReactElement } = {
@@ -99,7 +102,7 @@ function ColorlibStepIcon(props: any) {
 	};
 
 	return (
-		<ColorlibStepIconRoot theme={undefined as any} active={active} completed={completed} className={className}>
+		<ColorlibStepIconRoot active={active} completed={completed} className={className}>
 			{icons[String(icon)]}
 		</ColorlibStepIconRoot>
 	);
@@ -125,7 +128,7 @@ export default function RewardsPage() {
 		<Box sx={{ minHeight: "100dvh", display: "flex", bgcolor: "background.default" }}>
 			<Sidebar />
 
-			<Box component="main" sx={{ flex: 1, display: "flex", flexDirection: "column", height: "100dvh", overflow: "hidden" }}>
+			<Box component="main" sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
 				<Box sx={{ px: { xs: 2, md: 3 }, py: { xs: 2, md: 3 }, flex: 1, overflowY: "auto" }}>
 					<Typography variant="h5" sx={{ fontWeight: 800, mb: 1 }}>
 						Rewards & Loyalty
@@ -229,7 +232,7 @@ export default function RewardsPage() {
 									Your Journey
 								</Typography>
 								<Stepper alternativeLabel activeStep={activeStep} connector={<ColorlibConnector />}>
-									{rewardsMilestonesData.map((label, index) => (
+									{rewardsMilestonesData.map((label) => (
 										<Step key={label.id}>
 											<StepLabel StepIconComponent={ColorlibStepIcon}>
 												<Typography sx={{ fontWeight: 700, fontSize: 12 }}>{label.label}</Typography>
@@ -297,7 +300,7 @@ export default function RewardsPage() {
 														size="small"
 														variant={isUnlocked ? "contained" : "outlined"}
 														disabled={!isUnlocked}
-														color={milestone.color as any}
+														color={milestone.color as "primary" | "secondary" | "success" | "error" | "info" | "warning" | "inherit"}
 														fullWidth
 														sx={{ borderRadius: 1.5, fontWeight: 700 }}
 													>

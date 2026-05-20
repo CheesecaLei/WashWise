@@ -9,6 +9,7 @@ const getPusherClient = () => {
   if (typeof window === "undefined") return undefined;
   
   // Use require as a fallback for hybrid modules in Next.js/Turbopack
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const PusherClass = require("pusher-js");
   const ActualPusher = PusherClass.default || PusherClass;
   

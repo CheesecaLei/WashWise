@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, Pagination, PaginationItem, Stack, Typography, alpha } from "@mui/material";
+import { Box, Pagination, PaginationItem, Typography, alpha } from "@mui/material";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface PremiumPaginationProps {

@@ -12,7 +12,7 @@ export type SavedAddress = {
 	createdAt: string;
 };
 
-export type ApiResponse<T = {}> =
+export type ApiResponse<T = Record<string, unknown>> =
 	| ({ success: true; error?: never } & T)
 	| { success: false; error: string };
 

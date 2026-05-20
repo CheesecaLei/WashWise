@@ -44,11 +44,11 @@ export default function OfflinePage() {
         </Box>
 
         <Typography variant="h4" fontWeight={800} gutterBottom sx={{ color: "#1e293b" }}>
-          You're Offline
+          You&apos;re Offline
         </Typography>
 
         <Typography variant="body1" sx={{ color: "#64748b", mb: pendingCount > 0 ? 2 : 4, lineHeight: 1.6 }}>
-          It looks like you've lost your connection. Don't worry — you can still queue
+          It looks like you&apos;ve lost your connection. Don&apos;t worry — you can still queue
           a laundry order and it will be submitted automatically when you reconnect.
         </Typography>
 

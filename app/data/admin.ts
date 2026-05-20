@@ -171,7 +171,14 @@ export const activityLogsMockData: ActivityLog[] = [
 ];
 
 export const orderStatusFlow: OrderStatus[] = [
-  "waiting", "in-progress", "ready", "out-for-delivery", "closed"
+  "waiting",
+  "picked-up",
+  "received-by-staff",
+  "in-progress",
+  "ready",
+  "out-for-delivery",
+  "received-by-client",
+  "closed",
 ];
 
 export const progressStatsMockData: ProgressStat[] = [

@@ -51,7 +51,24 @@ export async function GET(_request: NextRequest) {
             };
         });
 
-        return NextResponse.json({ metrics, serviceReports });
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+        const ordersToday = await db.collection("orders").find({
+            status: { $ne: "draft" },
+            createdAt: { $gte: startOfDay }
+        }).toArray();
+        const weightToday = ordersToday.reduce((acc, o) => acc + (Number(o.totalWeight) || 0), 0);
+
+        return NextResponse.json({
+            metrics,
+            serviceReports,
+            weightToday,
+            checkouts: checkouts.map(c => ({
+                finalTotal: c.finalTotal || 0,
+                paymentStatus: c.paymentStatus || "unpaid",
+                createdAt: c.createdAt || new Date().toISOString()
+            }))
+        });
     } catch (error) {
         console.error("Report API Error:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });

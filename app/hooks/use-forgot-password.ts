@@ -19,8 +19,8 @@ export function useForgotPassword() {
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || 'Verification failed');
             return { ok: true, data };
-        } catch (error: any) {
-            setApiError(error.message);
+        } catch (error) {
+            setApiError(error instanceof Error ? error.message : "An unexpected error occurred");
             return { ok: false };
         } finally {
             setIsSubmitting(false);
@@ -39,8 +39,8 @@ export function useForgotPassword() {
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || 'Verification failed');
             return { ok: true, data };
-        } catch (error: any) {
-            setApiError(error.message);
+        } catch (error) {
+            setApiError(error instanceof Error ? error.message : "An unexpected error occurred");
             return { ok: false };
         } finally {
             setIsSubmitting(false);
@@ -59,8 +59,8 @@ export function useForgotPassword() {
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || 'Reset failed');
             return { ok: true, data };
-        } catch (error: any) {
-            setApiError(error.message);
+        } catch (error) {
+            setApiError(error instanceof Error ? error.message : "An unexpected error occurred");
             return { ok: false };
         } finally {
             setIsSubmitting(false);

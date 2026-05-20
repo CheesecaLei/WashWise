@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ObjectId } from "mongodb";
 import { getDb } from "../../../config/mongodb";
 
 export async function GET(request: NextRequest) {
@@ -52,14 +53,13 @@ export async function GET(request: NextRequest) {
                 finalTotal: item.finalTotal,
                 address: item.serviceMethod === "pickup" ? `${item.streetAddress}, ${item.barangay}, ${item.city}` : "Drop-off at Store",
                 createdAt: item.createdAt,
-                // Payment status — for consistent processing tracking
-                paymentStatus: item.paymentStatus || item.order?.paymentStatus || "unpaid",
-                // Weight tracking — for load management
-                totalWeight: item.order?.totalWeight || 0,
-                // Handover timestamps — for physical possession confirmation
-                pickedUpAt: item.order?.pickedUpAt || null,
-                receivedByStaffAt: item.order?.receivedByStaffAt || null,
-                receivedByClientAt: item.order?.receivedByClientAt || null,
+                paymentMethod: item.paymentMethod || "COD",
+                paymentStatus: item.paymentStatus || "unpaid",
+                logisticsFee: item.logisticsFee || 0,
+                promoDiscount: item.promoDiscount || 0,
+                rewardDiscount: item.rewardDiscount || 0,
+                loyaltyDiscount: item.loyaltyDiscount || 0,
+                services: item.order?.services || []
             };
         });
 
@@ -75,6 +75,34 @@ export async function GET(request: NextRequest) {
         });
     } catch (error) {
         console.error("Error fetching schedules:", error);
+        return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
+    }
+}
+
+export async function PATCH(request: NextRequest) {
+    try {
+        const body = await request.json();
+        const { checkoutId, paymentStatus } = body;
+
+        if (!checkoutId || !ObjectId.isValid(checkoutId) || !paymentStatus) {
+            return NextResponse.json({ success: false, error: "Invalid parameters" }, { status: 400 });
+        }
+
+        const db = await getDb();
+        const checkoutsCollection = db.collection("checkouts");
+
+        const result = await checkoutsCollection.updateOne(
+            { _id: new ObjectId(checkoutId) },
+            { $set: { paymentStatus, updatedAt: new Date() } }
+        );
+
+        if (result.matchedCount === 0) {
+            return NextResponse.json({ success: false, error: "Checkout not found" }, { status: 404 });
+        }
+
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        console.error("Error updating payment status:", error);
         return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
     }
 }

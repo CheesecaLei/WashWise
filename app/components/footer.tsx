@@ -19,7 +19,7 @@ export default function Footer() {
         sx={{ px: { xs: 1.5, sm: 2, md: 3.5 }, py: { xs: 1, md: 1.2 }, bgcolor: "background.paper" }}
       >
         <Typography variant="caption" color="text.secondary">
-          © 2026 {brandName}. Premium Laundry Services.
+          © {new Date().getFullYear()} {brandName}. Premium Laundry Services.
         </Typography>
         <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
           {footerLinks.map((link) => (

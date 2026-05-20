@@ -23,14 +23,14 @@ export function useOrderProgress() {
         try {
             setLoading(true);
             const response = await fetch(`/api/admin/service-mng?page=${pageNum}&limit=10`);
-            if (!response.ok) throw new Error("Failed to fetch progress data");
             const data = await response.json();
+            if (!response.ok) throw new Error(data.error || "Failed to fetch progress data");
             setOrders(data.orders);
             setStats(data.stats);
             setPagination(data.pagination);
             setError(null);
         } catch (err) {
-            setError("Unable to load progress data.");
+            setError(err instanceof Error ? err.message : "Unable to load progress data.");
             console.error(err);
         } finally {
             setLoading(false);
@@ -46,14 +46,15 @@ export function useOrderProgress() {
                 body: JSON.stringify({ orderId, status }),
             });
 
-            if (!response.ok) throw new Error("Failed to update status");
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || "Failed to update status");
             
             // Local update for responsiveness
             setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
             return { ok: true };
         } catch (err) {
             console.error(err);
-            return { ok: false, error: "Failed to update status." };
+            return { ok: false, error: err instanceof Error ? err.message : "Failed to update status." };
         } finally {
             setUpdatingId(null);
         }

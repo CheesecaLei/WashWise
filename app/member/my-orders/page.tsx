@@ -6,11 +6,9 @@ import {
 	Circle,
 	CircleCheckBig,
 	Clock3,
-	Download,
 	MessageSquare,
 	PackageOpen,
 	Truck,
-	ChevronRight,
 } from "lucide-react";
 import {
 	alpha,
@@ -29,6 +27,10 @@ import {
 	TableRow,
 	Typography,
 	CircularProgress,
+	Menu,
+	MenuItem,
+	Tabs,
+	Tab,
 } from "@mui/material";
 import { toast } from "react-toastify";
 import Sidebar from "../../components/sidebar";
@@ -90,18 +92,43 @@ function getStatusLabel(status?: string, serviceMethod?: string) {
 	}
 }
 
+interface PaginationData {
+	total: number;
+	totalPages: number;
+	limit: number;
+}
+
+interface ServiceItem {
+	label: string;
+	lineTotal: number;
+	unitLabel: string;
+	quantity: number;
+}
+
 export default function MyOrdersPage() {
 	const { navigate } = useLayoutShell();
 	const { fetchTransactions, isLoadingOrder } = useOrder();
 	const [transactions, setTransactions] = useState<FetchTransactionsResponse["transactions"]>([]);
 	const [page, setPage] = useState(1);
-	const [pagination, setPagination] = useState<any>(null);
+	const [pagination, setPagination] = useState<PaginationData | null>(null);
+	const [filterAnchorEl, setFilterAnchorEl] = useState<null | HTMLElement>(null);
+	const [filterStatus, setFilterStatus] = useState<string>("All");
+	const [orderTab, setOrderTab] = useState(0);
+
+	const handleFilterClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+		setFilterAnchorEl(event.currentTarget);
+	};
+	
+	const handleFilterClose = (status?: string) => {
+		setFilterAnchorEl(null);
+		if (status) setFilterStatus(status);
+	};
 
 	const loadData = useCallback((pageNum: number = 1) => {
-		fetchTransactions(pageNum).then((result: any) => {
+		fetchTransactions(pageNum).then((result: { success: boolean; transactions?: FetchTransactionsResponse["transactions"]; pagination?: PaginationData }) => {
 			if (result.success && result.transactions) {
 				setTransactions(result.transactions);
-				setPagination(result.pagination);
+				setPagination(result.pagination || null);
 			}
 		});
 	}, [fetchTransactions]);
@@ -115,7 +142,7 @@ export default function MyOrdersPage() {
 
 		const channel = pusherClient.subscribe("order-updates");
 		
-		channel.bind("order-status-updated", (data: any) => {
+		channel.bind("order-status-updated", (data: { status?: string; serviceMethod?: string; orderId?: string }) => {
 			console.log("Member: Order status updated!", data);
 			
 			let statusLabel = data.status;
@@ -138,6 +165,20 @@ export default function MyOrdersPage() {
 
 	const currentTransaction = transactions && transactions.length > 0 ? transactions[0] : null;
 	const currentOrderId = currentTransaction?._id.slice(-6).toUpperCase();
+
+	const historyTransactions = useMemo(() => {
+		if (!transactions) return [];
+		let list = page === 1 ? transactions.slice(1) : transactions;
+		if (filterStatus !== "All") {
+			list = list.filter(t => {
+				const status = t.order?.status?.toLowerCase();
+				if (filterStatus === "Pending") return ["waiting", "in-progress", "ready", "out-for-delivery"].includes(status);
+				if (filterStatus === "Finished") return ["closed", "completed"].includes(status);
+				return status === filterStatus.toLowerCase();
+			});
+		}
+		return list;
+	}, [transactions, page, filterStatus]);
 
 	const stats = useMemo(() => {
 		if (!transactions) return { total: 0, weight: 0 };
@@ -162,7 +203,7 @@ export default function MyOrdersPage() {
 	}
 
 	return (
-		<Box sx={{ minHeight: "100dvh", height: { xs: "auto", md: "100dvh" }, display: "flex", bgcolor: "background.default", overflow: { xs: "visible", md: "hidden" } }}>
+		<Box sx={{ minHeight: "100dvh", display: "flex", bgcolor: "background.default" }}>
 			<Sidebar />
 
 			<Box
@@ -170,9 +211,6 @@ export default function MyOrdersPage() {
 				sx={{
 					flex: 1,
 					minWidth: 0,
-					height: { xs: "auto", md: "100dvh" },
-					overflowY: "auto",
-					overflowX: "hidden",
 					display: "flex",
 					flexDirection: "column",
 				}}
@@ -180,23 +218,28 @@ export default function MyOrdersPage() {
 				<Box sx={{ px: { xs: 1.5, sm: 2, md: 3 }, py: { xs: 1.25, md: 2 }, flex: 1 }}>
 					<Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" rowGap={1} mb={1.5}>
 						<Typography variant="h6" sx={{ fontWeight: 700, fontSize: { xs: 18, md: 22 } }}>
-							My Orders
+							My Recent Order
 						</Typography>
-						<Button variant="text" size="small" startIcon={<Download size={14} />}>
-							Export History
-						</Button>
 					</Stack>
+
+					<Box sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}>
+						<Tabs value={orderTab} onChange={(_, v) => setOrderTab(v)}>
+							<Tab label="Recent Order" sx={{ textTransform: "none", fontWeight: 700 }} />
+							<Tab label="Order History" sx={{ textTransform: "none", fontWeight: 700 }} />
+						</Tabs>
+					</Box>
 
 					{transactions && transactions.length > 0 ? (
 						<Grid container spacing={1.5}>
 							<Grid size={{ xs: 12, xl: 8.5 }}>
 								{/* Current Order Card */}
+								{orderTab === 0 && (
 								<Paper elevation={0} sx={{ border: 1, borderColor: "divider", borderRadius: 1.5, overflow: "hidden" }}>
 									<Box
 										sx={{
 											p: 1.5,
 											display: "grid",
-											gridTemplateColumns: { xs: "1fr", md: "1fr auto auto auto" },
+											gridTemplateColumns: { xs: "1fr", md: "1fr auto auto" },
 											gap: 1,
 											alignItems: "center",
 											bgcolor: (theme) => alpha(theme.palette.primary.main, 0.06),
@@ -215,23 +258,6 @@ export default function MyOrdersPage() {
 												Scheduled For
 											</Typography>
 											<Typography sx={{ fontWeight: 700, fontSize: 13 }}>{currentTransaction?.selectedSlot}</Typography>
-										</Box>
-										<Box>
-											<Typography variant="caption" sx={{ textTransform: "uppercase", color: "text.secondary", fontWeight: 700, fontSize: 10 }}>
-												Payment
-											</Typography>
-											<Chip 
-												label={currentTransaction?.paymentStatus?.replace("_", " ").toUpperCase() || "UNPAID"}
-												size="small"
-												variant="outlined"
-												sx={{
-													fontWeight: 700,
-													fontSize: 10,
-													height: 22,
-													color: currentTransaction?.paymentStatus === "paid" ? "success.main" : currentTransaction?.paymentStatus === "refunded" ? "error.main" : "warning.main",
-													borderColor: currentTransaction?.paymentStatus === "paid" ? "success.main" : currentTransaction?.paymentStatus === "refunded" ? "error.main" : "warning.main",
-												}}
-											/>
 										</Box>
 										<Chip 
 											label={getStatusLabel(currentTransaction?.order?.status, currentTransaction?.serviceMethod)} 
@@ -278,7 +304,7 @@ export default function MyOrdersPage() {
 												<Paper variant="outlined" sx={{ p: 1.2, borderRadius: 1 }}>
 													<Typography sx={{ fontWeight: 700, fontSize: 12, mb: 0.8 }}>Service Breakdown</Typography>
 													<Stack spacing={0.6}>
-														{currentTransaction?.order?.services.map((item: any, idx: number) => (
+														{currentTransaction?.order?.services.map((item: ServiceItem, idx: number) => (
 															<Stack key={idx} direction="row" justifyContent="space-between" spacing={1}>
 																<Typography variant="caption" color="text.secondary" sx={{ fontSize: 11 }}>
 																	{item.label}
@@ -288,12 +314,6 @@ export default function MyOrdersPage() {
 																</Typography>
 															</Stack>
 														))}
-														{currentTransaction?.order?.totalWeight && currentTransaction.order.totalWeight > 0 && (
-															<Stack direction="row" justifyContent="space-between" spacing={1} sx={{ py: 0.5, borderTop: 1, borderColor: "divider" }}>
-																<Typography variant="caption" color="text.secondary" sx={{ fontSize: 11 }}>Total Weight</Typography>
-																<Typography variant="caption" sx={{ fontWeight: 700, fontSize: 11 }}>{currentTransaction.order.totalWeight} kg</Typography>
-															</Stack>
-														)}
 														{currentTransaction && currentTransaction.logisticsFee > 0 && (
 															<Stack direction="row" justifyContent="space-between" spacing={1}>
 																<Typography variant="caption" color="text.secondary" sx={{ fontSize: 11 }}>Logistics Fee</Typography>
@@ -304,12 +324,6 @@ export default function MyOrdersPage() {
 															<Stack direction="row" justifyContent="space-between" spacing={1}>
 																<Typography variant="caption" color="success.main" sx={{ fontSize: 11 }}>Promo Discount</Typography>
 																<Typography variant="caption" sx={{ fontWeight: 700, fontSize: 11, color: "success.main" }}>-{formatPeso(currentTransaction.promoDiscount)}</Typography>
-															</Stack>
-														)}
-														{currentTransaction?.order?.loyaltyDiscount && currentTransaction.order.loyaltyDiscount > 0 && (
-															<Stack direction="row" justifyContent="space-between" spacing={1}>
-																<Typography variant="caption" color="success.main" sx={{ fontSize: 11 }}>Loyalty Discount</Typography>
-																<Typography variant="caption" sx={{ fontWeight: 700, fontSize: 11, color: "success.main" }}>-{formatPeso(currentTransaction.order.loyaltyDiscount)}</Typography>
 															</Stack>
 														)}
 													</Stack>
@@ -338,14 +352,26 @@ export default function MyOrdersPage() {
 										</Grid>
 									</Box>
 								</Paper>
+								)}
 
 								{/* Older Orders Table */}
+								{orderTab === 1 && (
 								<Paper elevation={0} sx={{ border: 1, borderColor: "divider", borderRadius: 1.5, mt: 1.5, overflow: "hidden" }}>
 									<Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ p: 1.2 }}>
 										<Typography sx={{ fontWeight: 700, fontSize: 14 }}>Order History</Typography>
 										<Stack direction="row" spacing={0.8} flexWrap="wrap" useFlexGap>
-											<Button size="small" variant="outlined" sx={{ py: 0.5 }}>Export CSV</Button>
-											<Button size="small" variant="outlined" sx={{ py: 0.5 }}>Filter</Button>
+											<Button size="small" variant="outlined" sx={{ py: 0.5 }} onClick={handleFilterClick}>
+												Filter: {filterStatus}
+											</Button>
+											<Menu
+												anchorEl={filterAnchorEl}
+												open={Boolean(filterAnchorEl)}
+												onClose={() => handleFilterClose()}
+											>
+												<MenuItem onClick={() => handleFilterClose("All")}>All</MenuItem>
+												<MenuItem onClick={() => handleFilterClose("Pending")}>Pending</MenuItem>
+												<MenuItem onClick={() => handleFilterClose("Finished")}>Finished</MenuItem>
+											</Menu>
 										</Stack>
 									</Stack>
 
@@ -362,27 +388,35 @@ export default function MyOrdersPage() {
 												</TableRow>
 											</TableHead>
 											<TableBody>
-												{transactions.map((item) => (
-													<TableRow key={item._id} sx={{ "&:hover": { bgcolor: "background.default" } }}>
-														<TableCell sx={{ fontWeight: 700, color: "primary.main", fontSize: 12 }}>#{item._id.slice(-6).toUpperCase()}</TableCell>
-														<TableCell sx={{ fontSize: 12 }}>{new Date(item.createdAt).toLocaleDateString()}</TableCell>
-														<TableCell sx={{ fontSize: 12 }}>{item.order?.services.map((s: any) => s.label).join(", ")}</TableCell>
-														<TableCell sx={{ fontWeight: 700, fontSize: 12 }}>{formatPeso(item.finalTotal)}</TableCell>
-														<TableCell>
-															<Chip 
-																size="small" 
-																label={getStatusLabel(item.order?.status, item.serviceMethod)} 
-																color={getStatusColor(item.order?.status)} 
-																sx={{ height: 20, fontSize: 10, fontWeight: 700 }} 
-															/>
-														</TableCell>
-														<TableCell align="right">
-															<Button size="small" variant="text" sx={{ fontSize: 11 }} onClick={() => navigate(`/member/new-order/placed?transactionId=${item._id}`)}>
-																Details
-															</Button>
+												{historyTransactions.length > 0 ? (
+													historyTransactions.map((item) => (
+														<TableRow key={item._id} sx={{ "&:hover": { bgcolor: "background.default" } }}>
+															<TableCell sx={{ fontWeight: 700, color: "primary.main", fontSize: 12 }}>#{item._id.slice(-6).toUpperCase()}</TableCell>
+															<TableCell sx={{ fontSize: 12 }}>{new Date(item.createdAt).toLocaleDateString()}</TableCell>
+															<TableCell sx={{ fontSize: 12 }}>{item.order?.services.map((s: ServiceItem) => s.label).join(", ")}</TableCell>
+															<TableCell sx={{ fontWeight: 700, fontSize: 12 }}>{formatPeso(item.finalTotal)}</TableCell>
+															<TableCell>
+																<Chip 
+																	size="small" 
+																	label={getStatusLabel(item.order?.status, item.serviceMethod)} 
+																	color={getStatusColor(item.order?.status)} 
+																	sx={{ height: 20, fontSize: 10, fontWeight: 700 }} 
+																/>
+															</TableCell>
+															<TableCell align="right">
+																<Button size="small" variant="text" sx={{ fontSize: 11 }} onClick={() => navigate(`/member/new-order/placed?transactionId=${item._id}`)}>
+																	Details
+																</Button>
+															</TableCell>
+														</TableRow>
+													))
+												) : (
+													<TableRow>
+														<TableCell colSpan={6} align="center" sx={{ py: 3, color: "text.secondary" }}>
+															No previous orders in history.
 														</TableCell>
 													</TableRow>
-												))}
+												)}
 											</TableBody>
 										</Table>
 									</Box>
@@ -400,6 +434,7 @@ export default function MyOrdersPage() {
 										</Box>
 									)}
 								</Paper>
+								)}
 							</Grid>
 
 							<Grid size={{ xs: 12, xl: 3.5 }}>
@@ -488,7 +523,7 @@ export default function MyOrdersPage() {
 								<PackageOpen size={48} />
 							</Box>
 							<Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>No Orders Yet</Typography>
-							<Typography sx={{ color: "text.secondary", mb: 3 }}>You haven't placed any laundry orders yet. Start your first order now!</Typography>
+							<Typography sx={{ color: "text.secondary", mb: 3 }}>You haven&apos;t placed any laundry orders yet. Start your first order now!</Typography>
 							<Button variant="contained" onClick={() => navigate("/member/new-order")}>
 								Start My First Order
 							</Button>

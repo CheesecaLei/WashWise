@@ -58,6 +58,16 @@ function getServiceIcon(iconName: ServiceIconName) {
 }
 
 // Separate component for the form to prevent full page re-renders on every keystroke
+interface ServiceFormInput {
+	label: string;
+	description: string;
+	price: number;
+	unitLabel: "kg" | "pc";
+	iconName: ServiceIconName;
+	inputLabel: string;
+	placeholder: string;
+}
+
 const ServiceFormDialog = memo(({ 
 	open, 
 	onClose, 
@@ -68,7 +78,7 @@ const ServiceFormDialog = memo(({
 }: { 
 	open: boolean; 
 	onClose: () => void; 
-	onSubmit: (data: any) => Promise<void>; 
+	onSubmit: (data: ServiceFormInput) => Promise<void>; 
 	service: Service | null;
 	isSubmitting: boolean;
 	actionError: string | null;
@@ -98,7 +108,7 @@ const ServiceFormDialog = memo(({
 		}
 	});
 
-	const handleChange = (field: string, value: any) => {
+	const handleChange = (field: keyof typeof formData, value: string) => {
 		setFormData(prev => ({ ...prev, [field]: value }));
 	};
 
@@ -172,7 +182,7 @@ const ServiceFormDialog = memo(({
 								<Select
 									value={formData.unitLabel}
 									label="Unit"
-									onChange={(e) => handleChange("unitLabel", e.target.value as any)}
+									onChange={(e) => handleChange("unitLabel", e.target.value as "kg" | "pc")}
 								>
 									<MuiMenuItem value="kg">Kilogram (kg)</MuiMenuItem>
 									<MuiMenuItem value="pc">Piece (pc)</MuiMenuItem>
@@ -261,7 +271,7 @@ export default function AdminServicesPage() {
 		setActionError(null);
 	};
 
-	const handleFormSubmit = async (data: any) => {
+	const handleFormSubmit = async (data: ServiceFormInput) => {
 		setIsSubmitting(true);
 		setActionError(null);
 		
@@ -361,7 +371,7 @@ export default function AdminServicesPage() {
 												<TableRow>
 													<TableCell colSpan={5} align="center" sx={{ py: 8 }}>
 														<Typography color="text.secondary">
-															No services found. Click "Add New Service" to get started.
+															No services found. Click &quot;Add New Service&quot; to get started.
 														</Typography>
 													</TableCell>
 												</TableRow>

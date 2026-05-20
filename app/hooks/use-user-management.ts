@@ -22,9 +22,8 @@ export function useUserManagement() {
         try {
             setLoading(true);
             const response = await fetch(`/api/admin/user-mng?page=${pageNum}&limit=10`);
-            if (!response.ok) throw new Error("Failed to fetch users");
-            
             const data = await response.json();
+            if (!response.ok) throw new Error(data.error || "Failed to fetch users");
             setUsers(data.users);
             setPagination(data.pagination);
             
@@ -38,7 +37,7 @@ export function useUserManagement() {
             setStats(mappedStats);
             setError(null);
         } catch (err) {
-            setError("Unable to load user data.");
+            setError(err instanceof Error ? err.message : "Unable to load user data.");
             console.error(err);
         } finally {
             setLoading(false);
@@ -53,13 +52,14 @@ export function useUserManagement() {
                 body: JSON.stringify({ userId, updates: { status } }),
             });
 
-            if (!response.ok) throw new Error("Failed to update user");
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || "Failed to update user");
             
             await fetchUsers(page); // Refresh data on current page
             return { ok: true };
         } catch (err) {
             console.error(err);
-            return { ok: false, error: "Failed to update user status." };
+            return { ok: false, error: err instanceof Error ? err.message : "Failed to update user status." };
         }
     };
 
@@ -71,13 +71,14 @@ export function useUserManagement() {
                 body: JSON.stringify({ userId }),
             });
 
-            if (!response.ok) throw new Error("Failed to delete user");
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || "Failed to delete user");
             
             await fetchUsers(page); // Refresh data on current page
             return { ok: true };
         } catch (err) {
             console.error(err);
-            return { ok: false, error: "Failed to delete user." };
+            return { ok: false, error: err instanceof Error ? err.message : "Failed to delete user." };
         }
     };
 

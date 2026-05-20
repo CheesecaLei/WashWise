@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { pusherClient } from '../lib/pusher-client';
-import type { SupportMessage, TicketPriority } from '../types/support';
+import type { SupportMessage, TicketPriority, SupportTicket } from '../types/support';
 
 export function useMemberSupport() {
-    const [tickets, setTickets] = useState<any[]>([]);
+    const [tickets, setTickets] = useState<SupportTicket[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -181,7 +181,7 @@ export function useMemberSupportChat(ticketId: string | null) {
 
     // Real-time message subscription
     useEffect(() => {
-        if (!ticketId || typeof window === 'undefined') return;
+        if (!ticketId || typeof window === 'undefined' || !pusherClient) return;
 
         const channel = pusherClient.subscribe(`support-ticket-${ticketId}`);
 

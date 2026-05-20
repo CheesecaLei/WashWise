@@ -64,7 +64,15 @@ export type ActivityStat = {
   color: ActivityStatColor;
 };
 
-export type OrderStatus = "waiting" | "in-progress" | "ready" | "out-for-delivery" | "closed";
+export type OrderStatus =
+  | "waiting"
+  | "picked-up"
+  | "received-by-staff"
+  | "in-progress"
+  | "ready"
+  | "out-for-delivery"
+  | "received-by-client"
+  | "closed";
 
 export type LiveOrder = {
   id: string;
@@ -77,7 +85,8 @@ export type LiveOrder = {
   serviceMethod?: string;
   orderTime: string;
   estimatedCompletion: string;
-  paymentStatus?: "unpaid" | "partially_paid" | "paid" | "refunded";
+  rewardId?: string | null;
+  rewardDiscount?: number;
 };
 
 export type ProgressStatIcon = "active" | "completed" | "processing" | "ready";

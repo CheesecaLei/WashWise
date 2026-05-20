@@ -5,6 +5,7 @@ import { recordActivity } from "../../../lib/logger";
 import { pusherServer } from "../../../lib/pusher";
 import { broadcastToSubscriptions } from "../../../lib/push";
 import { sendSms } from "../../../lib/sms";
+import { sendEmail } from "../../../lib/email";
 
 export async function GET(request: NextRequest) {
     try {
@@ -55,7 +56,8 @@ export async function GET(request: NextRequest) {
             serviceMethod: order.checkoutDetails?.serviceMethod || "dropoff",
             orderTime: new Date(order.createdAt).toLocaleString(),
             estimatedCompletion: order.updatedAt ? new Date(order.updatedAt).toLocaleString() : "N/A",
-            paymentStatus: order.paymentStatus || "unpaid"
+            rewardId: order.checkoutDetails?.rewardId || null,
+            rewardDiscount: order.checkoutDetails?.rewardDiscount || 0
         }));
 
         // Progress Stats
@@ -89,6 +91,17 @@ export async function GET(request: NextRequest) {
     }
 }
 
+const VALID_TRANSITIONS: Record<string, string[]> = {
+    "waiting":              ["picked-up", "received-by-staff", "in-progress", "ready", "closed"],
+    "picked-up":            ["received-by-staff", "in-progress", "ready", "closed"],
+    "received-by-staff":    ["in-progress", "ready", "closed"],
+    "in-progress":          ["ready", "closed"],
+    "ready":                ["out-for-delivery", "received-by-client", "closed"],
+    "out-for-delivery":     ["received-by-client", "closed"],
+    "received-by-client":   ["closed"],
+    "closed":               [],
+};
+
 export async function PATCH(request: NextRequest) {
     try {
         const { orderId, status } = await request.json();
@@ -98,17 +111,31 @@ export async function PATCH(request: NextRequest) {
         }
 
         const db = await getDb();
-        const result = await db.collection("orders").updateOne(
-            { _id: new ObjectId(orderId) },
-            { $set: { status: status, updatedAt: new Date() } }
-        );
-
-        if (result.matchedCount === 0) {
+        const order = await db.collection("orders").findOne({ _id: new ObjectId(orderId) });
+        if (!order) {
             return NextResponse.json({ error: "Order not found" }, { status: 404 });
         }
 
-        // Record activity
-        const order = await db.collection("orders").findOne({ _id: new ObjectId(orderId) });
+        const currentStatus = order.status || "waiting";
+        const allowedNext = VALID_TRANSITIONS[currentStatus] || [];
+        if (!allowedNext.includes(status)) {
+            return NextResponse.json(
+                { error: `Invalid transition: ${currentStatus} → ${status}` },
+                { status: 422 }
+            );
+        }
+
+        const now = new Date();
+        const milestoneUpdate: Record<string, Date> = {};
+        if (status === "picked-up")           milestoneUpdate.pickedUpAt = now;
+        if (status === "received-by-staff")   milestoneUpdate.receivedByStaffAt = now;
+        if (status === "received-by-client")  milestoneUpdate.receivedByClientAt = now;
+
+        const result = await db.collection("orders").updateOne(
+            { _id: new ObjectId(orderId) },
+            { $set: { status: status, ...milestoneUpdate, updatedAt: now } }
+        );
+
         const customer = await db.collection("users").findOne({ _id: order?.userId });
         
         await recordActivity({
@@ -164,6 +191,32 @@ export async function PATCH(request: NextRequest) {
             }
         } catch (smsError) {
             console.error("Member SMS failed:", smsError);
+        }
+
+        // Email the specific Member on status updates
+        try {
+            const orderCode = orderId.toString().slice(-6).toUpperCase();
+            if (customer?.email) {
+                await sendEmail({
+                    to: customer.email,
+                    subject: `[WashWise] Order #${orderCode} Status Updated to ${status}`,
+                    html: `
+                        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+                            <h2 style="color: #0284c7;">WashWise Order Status Update</h2>
+                            <p>Hi <strong>${customer.username}</strong>,</p>
+                            <p>Great news! Your laundry order <strong>#${orderCode}</strong> has moved to a new milestone:</p>
+                            <div style="background-color: #f0f9ff; border-left: 4px solid #0284c7; padding: 15px; margin: 20px 0;">
+                                <p style="margin: 0; font-size: 16px;">Current Status: <strong style="text-transform: uppercase; color: #0284c7;">${status}</strong></p>
+                            </div>
+                            <p>You can track the live status of your order anytime on the <a href="http://localhost:3000/member/dashboard" style="color: #0284c7; text-decoration: none; font-weight: bold;">WashWise Dashboard</a>.</p>
+                            <hr style="border: 0; border-top: 1px solid #e0e0e0; margin: 20px 0;" />
+                            <p style="font-size: 12px; color: #666;">This is an automated notification from WashWise. Please do not reply directly to this email.</p>
+                        </div>
+                    `
+                });
+            }
+        } catch (emailError) {
+            console.error("Member status update email failed:", emailError);
         }
 
 		// Award loyalty points if order is closed

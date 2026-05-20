@@ -14,7 +14,7 @@ export const memberLayoutData: {
   navItems: [
     {
       id: "new-order",
-      label: "New Order",
+      label: "Dashboard",
       icon: "new-order",
       href: "/member/dashboard",
     },
@@ -23,12 +23,6 @@ export const memberLayoutData: {
       label: "My Orders",
       icon: "orders",
       href: "/member/my-orders",
-    },
-    {
-      id: "rewards",
-      label: "Rewards",
-      icon: "rewards",
-      href: "/member/rewards",
     },
   ],
   accountItems: [
@@ -52,8 +46,8 @@ export const memberLayoutData: {
     },
   ],
   footerLinks: [
-    { id: "privacy", label: "Privacy Policy", href: "/member/privacy" },
-    { id: "terms", label: "Terms of Service", href: "/member/terms" },
+    { id: "privacy", label: "Privacy Policy", href: "/privacy" },
+    { id: "terms", label: "Terms of Service", href: "/terms" },
     { id: "help", label: "Help Center", href: "/help" },
   ],
 };
@@ -128,8 +122,8 @@ export const adminLayoutData: {
   accountItems: [
   ],
   footerLinks: [
-    { id: "privacy", label: "Privacy Policy", href: "/admin/privacy" },
-    { id: "terms", label: "Terms of Service", href: "/admin/terms" },
+    { id: "privacy", label: "Privacy Policy", href: "/privacy" },
+    { id: "terms", label: "Terms of Service", href: "/terms" },
     { id: "help", label: "Help Center", href: "/help" },
   ],
 };

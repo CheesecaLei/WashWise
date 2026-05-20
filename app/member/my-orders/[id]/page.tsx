@@ -4,14 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import {
 	ArrowLeft,
-	CalendarClock,
 	Circle,
 	CircleCheckBig,
 	Clock3,
 	Download,
 	MessageSquare,
 	PackageOpen,
-	Truck,
 } from "lucide-react";
 import {
 	alpha,
@@ -57,6 +55,24 @@ function timelineColor(status: TimelineStatus) {
 	return "text.disabled";
 }
 
+interface OrderServiceItem {
+	id: string;
+	label: string;
+	quantity: number;
+	unitLabel: string;
+	lineTotal: number;
+}
+
+interface OrderDetails {
+	services?: OrderServiceItem[];
+	subtotal?: number;
+	checkout?: {
+		rewardDiscount?: number;
+		logisticsFee?: number;
+		serviceMethod?: string;
+	};
+}
+
 export default function TrackOrderStatusPage() {
 	const { navigate } = useLayoutShell();
 	const params = useParams<{ id?: string }>();
@@ -67,7 +83,7 @@ export default function TrackOrderStatusPage() {
 		return safe.replace(/^#/, "");
 	}, [params]);
 
-	const [order, setOrder] = useState<any>(null);
+	const [order, setOrder] = useState<OrderDetails | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 
 	useEffect(() => {
@@ -101,7 +117,7 @@ export default function TrackOrderStatusPage() {
 	}
 
 	return (
-		<Box sx={{ minHeight: "100dvh", height: { xs: "auto", md: "100dvh" }, display: "flex", bgcolor: "background.default", overflow: { xs: "visible", md: "hidden" } }}>
+		<Box sx={{ minHeight: "100dvh", display: "flex", bgcolor: "background.default" }}>
 			<Sidebar />
 
 			<Box
@@ -109,9 +125,6 @@ export default function TrackOrderStatusPage() {
 				sx={{
 					flex: 1,
 					minWidth: 0,
-					height: { xs: "auto", md: "100dvh" },
-					overflowY: "auto",
-					overflowX: "hidden",
 					display: "flex",
 					flexDirection: "column",
 				}}
@@ -190,7 +203,7 @@ export default function TrackOrderStatusPage() {
 											<Paper variant="outlined" sx={{ p: 1.6, borderRadius: 2 }}>
 												<Typography sx={{ fontWeight: 700, fontSize: 13.5, mb: 1 }}>Service Breakdown</Typography>
 												<Stack spacing={0.8}>
-													{services.map((item: any) => (
+													{services.map((item: OrderServiceItem) => (
 														<Stack key={item.id} direction="row" justifyContent="space-between" spacing={1}>
 															<Typography variant="body2" color="text.secondary">
 																{item.label} ({item.quantity}{item.unitLabel})

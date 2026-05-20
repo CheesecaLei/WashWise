@@ -22,7 +22,7 @@ export function useRewards() {
 			} else {
 				setError(data.error);
 			}
-		} catch (err) {
+		} catch {
 			setError("Failed to fetch rewards summary.");
 		} finally {
 			setIsLoading(false);
@@ -44,7 +44,7 @@ export function useRewards() {
 				setError(data.error);
 			}
 			return data;
-		} catch (err) {
+		} catch {
 			const errorMessage = "Failed to redeem reward.";
 			setError(errorMessage);
 			return { success: false, error: errorMessage };

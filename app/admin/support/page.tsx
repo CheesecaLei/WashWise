@@ -40,7 +40,14 @@ import Footer from "../../components/footer";
 import { useSupport, useSupportChat } from "../../hooks/use-support";
 import type { SupportTicket, TicketStatus, TicketPriority } from "../../types/support";
 
-function StatCard({ icon: Icon, label, value, color }: any) {
+interface StatCardProps {
+	icon: React.ComponentType<{ size?: number | string; style?: React.CSSProperties }>;
+	label: string;
+	value: string | number;
+	color: string;
+}
+
+function StatCard({ icon: Icon, label, value, color }: StatCardProps) {
 	return (
 		<Card elevation={0} sx={{ border: 1, borderColor: "divider", height: "100%" }}>
 			<CardContent>
@@ -72,14 +79,14 @@ function StatCard({ icon: Icon, label, value, color }: any) {
 }
 
 function TicketListItem({ ticket, isSelected, onClick }: { ticket: SupportTicket; isSelected: boolean; onClick: () => void }) {
-	const statusColors: Record<TicketStatus, string> = {
+	const statusColors: Record<TicketStatus, "default" | "primary" | "secondary" | "error" | "info" | "success" | "warning"> = {
 		open: "error",
 		"in-progress": "warning",
 		resolved: "success",
 		closed: "default",
 	};
 
-	const priorityColors: Record<TicketPriority, string> = {
+	const priorityColors: Record<TicketPriority, "default" | "primary" | "secondary" | "error" | "info" | "success" | "warning"> = {
 		low: "default",
 		medium: "info",
 		high: "warning",
@@ -99,9 +106,11 @@ function TicketListItem({ ticket, isSelected, onClick }: { ticket: SupportTicket
 			}}
 		>
 			<ListItemText
+				primaryTypographyProps={{ component: "div" }}
+				secondaryTypographyProps={{ component: "div" }}
 				primary={
 					<Stack direction="row" alignItems="center" spacing={1} mb={0.5}>
-						<Typography variant="subtitle2" component="span" fontWeight={700} sx={{ flex: 1 }}>
+						<Typography variant="subtitle2" component="div" fontWeight={700} sx={{ flex: 1 }}>
 							{ticket.ticketNumber}
 						</Typography>
 						{ticket.unreadCount > 0 && (
@@ -110,26 +119,26 @@ function TicketListItem({ ticket, isSelected, onClick }: { ticket: SupportTicket
 					</Stack>
 				}
 				secondary={
-					<Box component="span" sx={{ display: "block" }}>
-						<Typography variant="body2" component="span" noWrap sx={{ mb: 0.5, display: "block" }}>
+					<Box component="div" sx={{ display: "block" }}>
+						<Typography variant="body2" component="div" noWrap sx={{ mb: 0.5, display: "block" }}>
 							{ticket.subject}
 						</Typography>
-						<Stack direction="row" spacing={0.5} flexWrap="wrap" gap={0.5} component="span" sx={{ display: "flex" }}>
+						<Stack direction="row" spacing={0.5} flexWrap="wrap" gap={0.5} component="div" sx={{ display: "flex" }}>
 							<Chip
 								label={ticket.status.replace("-", " ")}
 								size="small"
-								color={statusColors[ticket.status] as any}
+								color={statusColors[ticket.status]}
 								sx={{ textTransform: "capitalize", height: 20, fontSize: 10 }}
 							/>
 							<Chip
 								label={ticket.priority}
 								size="small"
-								color={priorityColors[ticket.priority] as any}
+								color={priorityColors[ticket.priority]}
 								variant="outlined"
 								sx={{ textTransform: "capitalize", height: 20, fontSize: 10 }}
 							/>
 						</Stack>
-						<Typography variant="caption" component="span" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+						<Typography variant="caption" component="div" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
 							{ticket.userName} • {new Date(ticket.lastMessageTime || ticket.createdAt).toLocaleString()}
 						</Typography>
 					</Box>
@@ -226,7 +235,7 @@ export default function SupportPage() {
 	});
 
 	return (
-		<Box sx={{ minHeight: "100dvh", height: { xs: "auto", md: "100dvh" }, display: "flex", bgcolor: "background.default", overflow: { xs: "visible", md: "hidden" } }}>
+		<Box sx={{ minHeight: "100dvh", display: "flex", bgcolor: "background.default" }}>
 			<Sidebar />
 
 			<Box
@@ -234,9 +243,6 @@ export default function SupportPage() {
 				sx={{
 					flex: 1,
 					minWidth: 0,
-					height: { xs: "auto", md: "100dvh" },
-					overflowY: "auto",
-					overflowX: "hidden",
 					display: "flex",
 					flexDirection: "column",
 				}}
@@ -280,7 +286,7 @@ export default function SupportPage() {
 					<Grid container spacing={2}>
 						{/* Tickets List */}
 						<Grid size={{ xs: 12, md: 4 }}>
-							<Paper elevation={0} sx={{ border: 1, borderColor: "divider", height: "calc(100vh - 450px)", display: "flex", flexDirection: "column" }}>
+							<Paper elevation={0} sx={{ border: 1, borderColor: "divider", height: "calc(100vh - 310px)", display: "flex", flexDirection: "column" }}>
 								<Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
 									<Tabs value={tabValue} onChange={(_, v) => setTabValue(v)} variant="fullWidth">
 										<Tab label="All" />
@@ -357,7 +363,7 @@ export default function SupportPage() {
 						{/* Chat Area */}
 						<Grid size={{ xs: 12, md: 8 }}>
 							{selectedTicket ? (
-								<Paper elevation={0} sx={{ border: 1, borderColor: "divider", height: "calc(100vh - 450px)", display: "flex", flexDirection: "column" }}>
+								<Paper elevation={0} sx={{ border: 1, borderColor: "divider", height: "calc(100vh - 310px)", display: "flex", flexDirection: "column" }}>
 									{/* Chat Header */}
 									<Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
 										<Stack direction="row" alignItems="center" justifyContent="space-between">
@@ -517,7 +523,7 @@ export default function SupportPage() {
 									sx={{
 										border: 1,
 										borderColor: "divider",
-										height: "calc(100vh - 450px)",
+										height: "calc(100vh - 310px)",
 										display: "flex",
 										alignItems: "center",
 										justifyContent: "center",

@@ -20,7 +20,7 @@ import {
 } from "@mui/material";
 import Sidebar from "../../components/sidebar";
 import Footer from "../../components/footer";
-import { useProfile, type ProfileData, type UpdateProfileResponse, type UpdatePasswordResponse } from "../../hooks/use-profile";
+import { useProfile, type ProfileData } from "../../hooks/use-profile";
 import { usePushNotifications } from "../../hooks/use-push-notifications";
 
 export default function ProfilePage() {
@@ -122,7 +122,7 @@ export default function ProfilePage() {
 	}
 
 	return (
-		<Box sx={{ minHeight: "100dvh", height: { xs: "auto", md: "100dvh" }, display: "flex", bgcolor: "background.default", overflow: { xs: "visible", md: "hidden" } }}>
+		<Box sx={{ minHeight: "100dvh", display: "flex", bgcolor: "background.default" }}>
 			<Sidebar />
 
 			<Box
@@ -130,9 +130,6 @@ export default function ProfilePage() {
 				sx={{
 					flex: 1,
 					minWidth: 0,
-					height: { xs: "auto", md: "100dvh" },
-					overflowY: "auto",
-					overflowX: "hidden",
 					display: "flex",
 					flexDirection: "column",
 				}}

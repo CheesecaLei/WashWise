@@ -21,20 +21,24 @@ export async function POST(request: NextRequest) {
 			return NextResponse.json({ success: false, error: "No services selected" }, { status: 400 });
 		}
 
-		// Compute total weight (kg) from services that use kg as unitLabel.
-		const totalWeight = (body.services || []).reduce((sum, s: any) => {
-			// Service items coming from client include `unitLabel` and `quantity`.
-			// Only sum quantities where unitLabel indicates kilograms.
+		const MIN_ORDER_WEIGHT_KG = 5; // minimum weight to protect equipment
+		const MAX_ORDER_WEIGHT_KG = 20; // maximum single-order machine capacity
+
+		const hasInvalidKgService = (body.services || []).some(s => s && s.unitLabel === "kg" && (Number(s.quantity) || 0) < MIN_ORDER_WEIGHT_KG);
+
+		if (hasInvalidKgService) {
+			return NextResponse.json({ success: false, error: `Estimated weight too low — minimum is ${MIN_ORDER_WEIGHT_KG} kg per service.` }, { status: 400 });
+		}
+
+		const totalWeight = (body.services || []).reduce((acc, s) => {
 			if (s && s.unitLabel === "kg") {
-				const q = Number(s.quantity) || 0;
-				return sum + q;
+				return acc + (Number(s.quantity) || 0);
 			}
-			return sum;
+			return acc;
 		}, 0);
 
-		const MAX_WEIGHT_KG = 20;
-		if (totalWeight > MAX_WEIGHT_KG) {
-			return NextResponse.json({ success: false, error: `Order exceeds maximum allowed weight of ${MAX_WEIGHT_KG} kg.` }, { status: 400 });
+		if (totalWeight > MAX_ORDER_WEIGHT_KG) {
+			return NextResponse.json({ success: false, error: `Order exceeds maximum allowed weight of ${MAX_ORDER_WEIGHT_KG} kg. Please split into multiple orders.` }, { status: 400 });
 		}
 
 		const db = await getDb();
@@ -44,16 +48,11 @@ export async function POST(request: NextRequest) {
 			userId: new ObjectId(userId),
 			services: body.services,
 			specialInstructions: body.specialInstructions || "",
-			subtotal: body.subtotal,
-			// computed total weight for quick reference
+			subtotal: Number(body.subtotal) || 0,
 			totalWeight,
-			// initial lifecycle status
 			status: "draft",
-			// Payment status — starts as unpaid, will transition on checkout
 			paymentStatus: "unpaid",
-			// Loyalty discount applied to this order (in peso amount)
 			loyaltyDiscount: 0,
-			// Handover timestamp fields — will be populated as the order progresses
 			pickedUpAt: null,
 			receivedByStaffAt: null,
 			receivedByClientAt: null,

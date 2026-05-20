@@ -86,7 +86,7 @@ export function useOrder() {
 			}
 
 			return data;
-		} catch (error) {
+		} catch {
 			const errorMessage = "Network error. Please try again.";
 			setApiError(errorMessage);
 			return { success: false, error: errorMessage };
@@ -115,7 +115,7 @@ export function useOrder() {
 			}
 
 			return data;
-		} catch (error) {
+		} catch {
 			const errorMessage = "Network error. Please try again.";
 			setApiError(errorMessage);
 			return { success: false, error: errorMessage };
@@ -139,7 +139,7 @@ export function useOrder() {
 			}
 
 			return data;
-		} catch (error) {
+		} catch {
 			const errorMessage = "Network error. Please try again.";
 			setApiError(errorMessage);
 			return { success: false, error: errorMessage };
@@ -154,7 +154,7 @@ export function useOrder() {
 
 		try {
 			const response = await fetch(`/api/member/transaction?page=${page}&limit=10`);
-			const data = (await response.json()) as any;
+			const data = (await response.json()) as FetchTransactionsResponse;
 
 			if (!response.ok || !data.success) {
 				const errorMessage = data.error || "Failed to fetch transactions.";
@@ -163,7 +163,7 @@ export function useOrder() {
 			}
 
 			return data;
-		} catch (error) {
+		} catch {
 			const errorMessage = "Network error. Please try again.";
 			setApiError(errorMessage);
 			return { success: false, error: errorMessage };
@@ -187,7 +187,7 @@ export function useOrder() {
 			}
 
 			return data;
-		} catch (error) {
+		} catch {
 			const errorMessage = "Network error. Please try again.";
 			setApiError(errorMessage);
 			return { success: false, error: errorMessage };

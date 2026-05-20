@@ -4,43 +4,9 @@ import type {
 	PlacedOrderDeliveryType,
 	PlacedOrderSummaryItem,
 	PlacedOrderTimelineItem,
-	ServiceConfig,
 } from "../types/new-order";
 
 export const logisticsFee = 50;
-
-export const services: ServiceConfig[] = [
-	{
-		id: "wash-fold",
-		label: "Wash & Fold",
-		description: "Standard washing with professional detergents, neatly folded and sorted.",
-		unitLabel: "kg",
-		inputLabel: "Estimated Weight:",
-		placeholder: "0",
-		price: 35,
-		iconName: "waves",
-	},
-	{
-		id: "quick-dry",
-		label: "Quick Dry",
-		description: "Industrial tumble drying for extra fluffiness and fast turnaround.",
-		unitLabel: "kg",
-		inputLabel: "Estimated Weight:",
-		placeholder: "0",
-		price: 25,
-		iconName: "sun",
-	},
-	{
-		id: "press-iron",
-		label: "Press & Iron",
-		description: "Hand-pressed ironing for shirts, dresses, and formal wear.",
-		unitLabel: "pc",
-		inputLabel: "Estimated Quantity:",
-		placeholder: "0",
-		price: 15,
-		iconName: "flame",
-	},
-];
 
 export const checkoutTimeSlots = [
 	"09:00 AM - 11:00 AM",

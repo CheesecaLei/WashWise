@@ -12,6 +12,12 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Ignore compiled and minified service worker assets:
+    "public/sw.js",
+    "public/sw.js.map",
+    "public/swe-worker-*.js",
+    "public/swe-worker-*.js.map",
+    "public/workbox-*.js",
   ]),
 ]);
 

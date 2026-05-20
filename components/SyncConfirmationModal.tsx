@@ -8,7 +8,6 @@ import {
   DialogActions,
   Button,
   Box,
-  Typography,
 } from "@mui/material";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import { useRouter } from "next/navigation";
@@ -105,7 +104,7 @@ export function SyncConfirmationModal() {
             "&:hover": { bgcolor: "transparent", color: "text.primary" },
           }}
         >
-          I'll do it later
+          I&apos;ll do it later
         </Button>
       </DialogActions>
     </Dialog>

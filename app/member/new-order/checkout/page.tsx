@@ -20,8 +20,8 @@ import {
 import {
 	HomeOutlined,
 	LocationCityOutlined,
-	LocationOnOutlined,
 } from "@mui/icons-material";
+import Link from "next/link";
 import {
 	alpha,
 	Avatar,
@@ -52,6 +52,7 @@ import { useOrder } from "../../../hooks/use-order";
 import { useAddresses, type SavedAddress } from "../../../hooks/use-addresses";
 import {
 	olongapoBarangays,
+	olongapoStreets,
 	signupFormLabels,
 	signupReadonlyAddress,
 } from "../../../data/auth";
@@ -83,7 +84,7 @@ function CheckoutForm() {
 	const searchParams = useSearchParams();
 	const orderId = searchParams.get("orderId");
 	const { navigate } = useLayoutShell();
-	const { fetchOrder, createCheckout, isSubmitting, isLoadingOrder, apiError } = useOrder();
+	const { fetchOrder, createCheckout, isSubmitting, isLoadingOrder, apiError, fetchTransactions } = useOrder();
 	const { fetchAddresses } = useAddresses();
 
 	const [orderData, setOrderData] = useState<FetchOrderResponse["order"] | null>(null);
@@ -99,6 +100,9 @@ function CheckoutForm() {
 	const [city] = useState(signupReadonlyAddress.city);
 
 	const [selectedSlot, setSelectedSlot] = useState(checkoutTimeSlots[0]);
+
+	// Promo State
+	const [hasPreviousPickup, setHasPreviousPickup] = useState<boolean | null>(null);
 
 	// Rewards State
 	const { summary } = useRewards();
@@ -125,23 +129,32 @@ function CheckoutForm() {
 				}
 			}
 		});
-	}, [orderId, fetchOrder, fetchAddresses]);
+
+		fetchTransactions(1).then((result) => {
+			if (result.success && result.transactions) {
+				const hasPickup = result.transactions.some((t: { serviceMethod: string; orderId: string }) => t.serviceMethod === "pickup" && t.orderId !== orderId);
+				setHasPreviousPickup(hasPickup);
+			} else {
+				setHasPreviousPickup(false);
+			}
+		});
+	}, [orderId, fetchOrder, fetchAddresses, fetchTransactions]);
 
 	const subtotal = orderData ? orderData.subtotal : 0;
 	
 	const currentPromoDiscount = useMemo(() => {
-		if (serviceMethod === "pickup") {
+		if (serviceMethod === "pickup" && hasPreviousPickup === false) {
 			return checkoutPromoDiscount;
 		}
 		return 0;
-	}, [serviceMethod]);
+	}, [serviceMethod, hasPreviousPickup]);
 
 	const currentLogisticsFee = useMemo(() => {
-		if (serviceMethod === "pickup" && paymentMethod === "Online") {
+		if (serviceMethod === "pickup") {
 			return logisticsFee;
 		}
 		return 0;
-	}, [serviceMethod, paymentMethod]);
+	}, [serviceMethod]);
 
 	const currentRewardDiscount = useMemo(() => {
 		if (!selectedRewardId) return 0;
@@ -166,7 +179,7 @@ function CheckoutForm() {
 
 		let finalStreet = "";
 		let finalBarangay = "";
-		let finalCity = city;
+		const finalCity = city;
 
 		if (pickupSelected) {
 			if (selectedAddressId === "manual") {
@@ -203,7 +216,7 @@ function CheckoutForm() {
 			toast.success("Order Placed Successfully!", {
 				icon: <span>🧺</span>
 			});
-			navigate(`/member/new-order/placed?transactionId=${result.transactionId}`);
+			navigate("/member/dashboard");
 		}
 	};
 
@@ -394,6 +407,13 @@ function CheckoutForm() {
 											</Typography>
 										</Divider>
 
+										<Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: "block", bgcolor: "rgba(2, 132, 199, 0.05)", p: 1, borderRadius: 1, borderLeft: "3px solid #0284c7" }}>
+											🔒 <strong>Just-In-Time Disclosure:</strong> Your location details are collected solely to coordinate logistics, route drivers, and deliver your laundry. Your data is protected under the Philippine Data Privacy Act (DPA).{' '}
+											<Typography component={Link} href="/privacy" variant="caption" sx={{ fontWeight: 700, textDecoration: 'none', color: 'primary.main' }}>
+												Learn more in our Privacy Policy.
+											</Typography>
+										</Typography>
+
 										<TextField
 											fullWidth
 											required
@@ -411,20 +431,20 @@ function CheckoutForm() {
 										/>
 
 										<TextField
+											select
 											fullWidth
 											required
 											label={signupFormLabels.street}
 											size="small"
 											value={street}
 											onChange={(event) => setStreet(event.target.value)}
-											InputProps={{
-												startAdornment: (
-													<InputAdornment position="start">
-														<LocationOnOutlined fontSize="small" />
-													</InputAdornment>
-												),
-											}}
-										/>
+										>
+											{olongapoStreets.map((st) => (
+												<MenuItem key={st} value={st}>
+													{st}
+												</MenuItem>
+											))}
+										</TextField>
 
 										<TextField
 											select
@@ -491,6 +511,10 @@ function CheckoutForm() {
 									/>
 								))}
 							</Stack>
+
+							<Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1.5, bgcolor: "rgba(2, 132, 199, 0.05)", p: 1, borderRadius: 1, borderLeft: "3px solid #0284c7" }}>
+								🔒 <strong>Schedule Disclosure:</strong> Time slots are reserved strictly to optimize logistical routing and facility processing capacity under our security guidelines.
+							</Typography>
 
 							<Paper variant="outlined" sx={{ p: 1.2 }}>
 								<Stack direction="row" spacing={1} alignItems="flex-start">
@@ -613,21 +637,23 @@ function CheckoutForm() {
 
 								<Stack direction="row" justifyContent="space-between">
 									<Typography variant="body2" color="text.secondary">
-										Logistics Fee ({paymentMethod})
+										Logistics Fee
 									</Typography>
 									<Typography variant="body2" sx={{ fontWeight: 700 }}>
 										{serviceFeeLabel}
 									</Typography>
 								</Stack>
 
-								<Stack direction="row" justifyContent="space-between">
-									<Typography variant="body2" color="text.secondary">
-										Promo: First Ride Free
-									</Typography>
-									<Typography variant="body2" sx={{ fontWeight: 700 }}>
-										{currentPromoDiscount > 0 ? `-${formatPeso(currentPromoDiscount)}` : "N/A"}
-									</Typography>
-								</Stack>
+								{hasPreviousPickup === false && serviceMethod === "pickup" && (
+									<Stack direction="row" justifyContent="space-between">
+										<Typography variant="body2" color="text.secondary">
+											Promo: First Ride Free
+										</Typography>
+										<Typography variant="body2" sx={{ fontWeight: 700, color: "success.main" }}>
+											-{formatPeso(currentPromoDiscount)}
+										</Typography>
+									</Stack>
+								)}
 
 								{summary && summary.unlockedRewards.length > 0 && (
 									<Box sx={{ mt: 1 }}>
@@ -718,7 +744,7 @@ function CheckoutForm() {
 
 export default function CheckoutPage() {
 	return (
-		<Box sx={{ minHeight: "100dvh", height: { xs: "auto", md: "100dvh" }, display: "flex", bgcolor: "background.default", overflow: { xs: "visible", md: "hidden" } }}>
+		<Box sx={{ minHeight: "100dvh", display: "flex", bgcolor: "background.default" }}>
 			<Sidebar />
 
 			<Box
@@ -726,9 +752,6 @@ export default function CheckoutPage() {
 				sx={{
 					flex: 1,
 					minWidth: 0,
-					height: { xs: "auto", md: "100dvh" },
-					overflowY: "auto",
-					overflowX: "hidden",
 					display: "flex",
 					flexDirection: "column",
 				}}

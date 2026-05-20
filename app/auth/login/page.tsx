@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { FormEvent, Suspense, useState } from "react";
 import {
+	ArrowBackOutlined,
 	EmailOutlined,
-	Google,
 	LockOutlined,
 	Visibility,
 	VisibilityOff,
@@ -23,8 +23,6 @@ import {
 } from "@mui/material";
 import AuthLayoutWrapper from "../components/AuthLayoutWrapper";
 import {
-	authFooterBrandText,
-	authFooterLinks,
 	initialLoginFormValues,
 	loginPageCopy,
 } from "../../data/auth";
@@ -48,10 +46,21 @@ function validateLoginForm(values: LoginFormValues): LoginFormErrors {
 }
 
 export default function LoginPage() {
+	return (
+		<Suspense fallback={null}>
+			<LoginPageContent />
+		</Suspense>
+	);
+}
+
+function LoginPageContent() {
 	const router = useRouter();
+	const searchParams = useSearchParams();
+	const justVerified = searchParams.get("verified") === "1";
 	const [showPassword, setShowPassword] = useState(false);
 	const [formValues, setFormValues] = useState<LoginFormValues>(initialLoginFormValues);
 	const [formErrors, setFormErrors] = useState<LoginFormErrors>({});
+	const [isUnverified, setIsUnverified] = useState(false);
 	const { login, isSubmitting, apiError, clearApiError } = useLogin();
 
 	const handleFieldChange = (field: keyof LoginFormValues, value: string) => {
@@ -70,6 +79,7 @@ export default function LoginPage() {
 		if (apiError) {
 			clearApiError();
 		}
+		if (isUnverified) setIsUnverified(false);
 	};
 
 	const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -83,17 +93,19 @@ export default function LoginPage() {
 		}
 
 		setFormErrors({});
+		setIsUnverified(false);
 
 		const result = await login(formValues);
 
 		if (!result.ok) {
+			if ((result as any).unverified) setIsUnverified(true);
 			return;
 		}
 
 		router.replace(result.user.role === "admin" ? "/admin/dashboard" : "/member/dashboard");
 	};
 
-	const handleGoogleSuccess = async (credentialResponse: any) => {
+	const handleGoogleSuccess = async (credentialResponse: { credential?: string }) => {
 		clearApiError();
 		try {
 			const response = await fetch("/api/auth/google", {
@@ -109,14 +121,49 @@ export default function LoginPage() {
 			}
 
 			router.replace(data.user.role === "admin" ? "/admin/dashboard" : "/member/dashboard");
-		} catch (error: any) {
+		} catch (error) {
 			console.error("Google login error:", error);
 		}
 	};
 
 	return (
 		<AuthLayoutWrapper>
-			<Box sx={{ px: { xs: 2, sm: 6 }, py: { xs: 3, sm: 5 } }}>
+			<Box sx={{ px: { xs: 2, sm: 6 }, py: { xs: 3, sm: 5 }, display: "flex", flexDirection: "column" }}>
+				<Button
+					component={Link}
+					href="/"
+					startIcon={<ArrowBackOutlined />}
+					variant="text"
+					size="small"
+					sx={{
+						mb: 2,
+						fontWeight: 700,
+						textTransform: "none",
+						color: "text.secondary",
+						alignSelf: "flex-start",
+						"&:hover": {
+							color: "primary.main",
+							bgcolor: "rgba(17, 153, 142, 0.08)",
+						},
+					}}
+				>
+					Back to Home
+				</Button>
+
+				<Box sx={{ display: "flex", justifyContent: "center", mb: 2 }}>
+					<Box
+						component="img"
+						src="/WASHWISE LOGO.png"
+						alt="WashWise Logo"
+						sx={{
+							width: 60,
+							height: 60,
+							objectFit: "contain",
+							filter: "drop-shadow(0px 4px 10px rgba(0,0,0,0.06))"
+						}}
+					/>
+				</Box>
+
 				<Typography variant="h4" sx={{ fontWeight: 800, textAlign: "center", mb: 4, background: (theme) => `linear-gradient(90deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.light} 100%)`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
 					{loginPageCopy.title}
 				</Typography>
@@ -190,7 +237,24 @@ export default function LoginPage() {
 							}}
 						/>
 
-						{apiError && <Alert severity="error" sx={{ borderRadius: 2 }}>{apiError}</Alert>}
+						{justVerified && (
+							<Alert severity="success" sx={{ borderRadius: 2 }}>
+								✅ Email verified! You can now log in.
+							</Alert>
+						)}
+						{isUnverified ? (
+							<Alert severity="warning" sx={{ borderRadius: 2 }}>
+								Your email is not verified yet.{" "}
+								<Link
+									href={`/auth/verify-email?email=${encodeURIComponent(formValues.email)}`}
+									style={{ color: "inherit", fontWeight: 700 }}
+								>
+									Resend verification email →
+								</Link>
+							</Alert>
+						) : (
+							apiError && <Alert severity="error" sx={{ borderRadius: 2 }}>{apiError}</Alert>
+						)}
 					</Stack>
 
 					<Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1 }} component="div">

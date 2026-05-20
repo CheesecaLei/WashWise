@@ -2,668 +2,501 @@
 
 import { useState, useMemo } from "react";
 import { 
-    CalendarDays, 
-    Clock, 
-    MapPin, 
-    Phone, 
-    RefreshCcw, 
-    Truck, 
-    Package, 
-    User,
-    Search,
-    CheckCircle2,
-    Circle,
-    MoreVertical,
+	Calendar, 
+	Clock, 
+	Search, 
+	MapPin, 
+	Phone, 
+	ChevronRight,
+	CalendarDays,
+	X
 } from "lucide-react";
 import {
-    alpha,
-    Avatar,
-    Box,
-    Button,
-    Chip,
-    Paper,
-    Stack,
-    Typography,
-    CircularProgress,
-    Alert,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
-    InputAdornment,
-    TextField,
-    Tooltip,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogContentText,
-    DialogActions,
-    IconButton,
-    Menu,
-    MenuItem,
+	alpha,
+	Box,
+	Card,
+	CardContent,
+	Chip,
+	Grid,
+	InputAdornment,
+	Stack,
+	TextField,
+	Typography,
+	CircularProgress,
+	Alert,
+	Divider,
+	Button,
+	Paper,
+	Avatar,
+	Dialog,
+	DialogTitle,
+	DialogContent,
+	DialogActions,
+	Table,
+	TableBody,
+	TableCell,
+	TableContainer,
+	TableHead,
+	TableRow,
+	IconButton,
 } from "@mui/material";
 import Sidebar from "../../components/sidebar";
 import Footer from "../../components/footer";
-import { pusherClient } from "../../lib/pusher-client";
-import { useSchedules, Schedule } from "../../hooks/use-schedules";
-import { useOrderHandoverUpdate } from "../../hooks/use-order-handover-update";
-import { useRecordPayment } from "../../hooks/use-record-payment";
-import { useState, useMemo, useEffect } from "react";
+import PremiumPagination from "../../components/pagination";
+import { useSchedules, type Schedule } from "../../hooks/use-schedules";
+import { formatPeso } from "../../lib/currency";
 import { toast } from "react-toastify";
 
-function getStatusColor(status: string) {
-    switch (status.toLowerCase()) {
-        case "waiting":
-            return "info";
-        case "in-progress":
-            return "warning";
-        case "ready":
-            return "success";
-        case "closed":
-            return "default";
-        default:
-            return "primary";
-    }
-}
+export default function AdminSchedulingPage() {
+	const { schedules, loading, error, page, setPage, pagination, updatePaymentStatus } = useSchedules();
+	const [searchQuery, setSearchQuery] = useState("");
+	const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
+	const [detailsOpen, setDetailsOpen] = useState(false);
+	const [updatingPaymentId, setUpdatingPaymentId] = useState<string | null>(null);
 
-export default function SchedulingPage() {
-    const { schedules, loading, error, refresh } = useSchedules();
-    const { updateHandover, isUpdating } = useOrderHandoverUpdate();
-    const { recordPayment, isRecording } = useRecordPayment();
-    const [searchQuery, setSearchQuery] = useState("");
-    const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
-    const [selectedOrderForPayment, setSelectedOrderForPayment] = useState<Schedule | null>(null);
-    const [handoverAnchorEl, setHandoverAnchorEl] = useState<null | HTMLElement>(null);
-    const [selectedOrderForHandover, setSelectedOrderForHandover] = useState<Schedule | null>(null);
-    const [paymentAnchorEl, setPaymentAnchorEl] = useState<null | HTMLElement>(null);
-    const [selectedOrderForPaymentStatus, setSelectedOrderForPaymentStatus] = useState<Schedule | null>(null);
+	const handleViewDetails = (schedule: Schedule) => {
+		setSelectedSchedule(schedule);
+		setDetailsOpen(true);
+	};
 
-    const recordHandover = async (orderId: string, handoverType: "picked-up" | "received-by-staff" | "received-by-client") => {
-        const now = new Date().toISOString();
-        const updateData: any = { orderId };
+	const handleCloseDetails = () => {
+		setSelectedSchedule(null);
+		setDetailsOpen(false);
+	};
 
-        switch (handoverType) {
-            case "picked-up":
-                updateData.pickedUpAt = now;
-                break;
-            case "received-by-staff":
-                updateData.receivedByStaffAt = now;
-                break;
-            case "received-by-client":
-                updateData.receivedByClientAt = now;
-                break;
-        }
+	const handleTogglePaymentStatus = async (schedule: Schedule) => {
+		const newStatus = schedule.paymentStatus === "paid" ? "unpaid" : "paid";
+		setUpdatingPaymentId(schedule.id);
+		const result = await updatePaymentStatus(schedule.id, newStatus);
+		setUpdatingPaymentId(null);
+		if (result.success) {
+			toast.success(`Payment status updated to ${newStatus}`);
+			setSelectedSchedule(prev => prev ? { ...prev, paymentStatus: newStatus } : null);
+		} else {
+			toast.error(result.error || "Failed to update payment status");
+		}
+	};
 
-        const result = await updateHandover(updateData);
-        if (result.success) {
-            toast.success(`✅ ${handoverType.replace("-", " ").toUpperCase()} recorded!`, { autoClose: 3000 });
-            refresh();
-        } else {
-            toast.error(result.error || "Failed to record handover", { autoClose: 3000 });
-        }
-    };
+	const filteredSchedules = useMemo(() => {
+		if (!searchQuery) return schedules;
+		const query = searchQuery.toLowerCase();
+		return schedules.filter(s => 
+			s.orderCode.toLowerCase().includes(query) ||
+			s.customerName.toLowerCase().includes(query) ||
+			s.address.toLowerCase().includes(query)
+		);
+	}, [schedules, searchQuery]);
 
-    const handleRecordPayment = async (schedule: Schedule) => {
-        setSelectedOrderForPayment(schedule);
-        setPaymentDialogOpen(true);
-    };
+	const groupedSchedules = useMemo(() => {
+		const groups: Record<string, typeof filteredSchedules> = {};
+		filteredSchedules.forEach(s => {
+			const date = new Date(s.createdAt).toLocaleDateString("en-US", { 
+				weekday: "long", 
+				year: "numeric", 
+				month: "long", 
+				day: "numeric" 
+			});
+			if (!groups[date]) groups[date] = [];
+			groups[date].push(s);
+		});
+		return groups;
+	}, [filteredSchedules]);
 
-    const executeRecordPayment = async () => {
-        if (!selectedOrderForPayment) return;
+	return (
+		<Box sx={{ minHeight: "100dvh", display: "flex", bgcolor: "background.default" }}>
+			<Sidebar isAdmin />
 
-        const result = await recordPayment({
-            orderId: selectedOrderForPayment.orderId,
-            amount: selectedOrderForPayment.finalTotal,
-            method: "COD",
-            notes: "Payment received by staff",
-        });
+			<Box
+				component="main"
+				sx={{
+					flex: 1,
+					minWidth: 0,
+					display: "flex",
+					flexDirection: "column",
+				}}
+			>
+				<Box sx={{ px: { xs: 1.5, sm: 2, md: 3 }, py: { xs: 1.25, md: 2 }, flex: 1 }}>
+					<Stack direction="row" justifyContent="space-between" alignItems="center" mb={4}>
+						<Box>
+							<Typography variant="h4" sx={{ fontWeight: 800, color: "text.primary", mb: 0.5 }}>
+								Pickup & Delivery Schedule
+							</Typography>
+							<Typography variant="body2" color="text.secondary">
+								Monitor and manage logistics for all active orders.
+							</Typography>
+						</Box>
+						<Stack direction="row" spacing={2} alignItems="center">
+							<TextField
+								placeholder="Search schedules..."
+								size="small"
+								value={searchQuery}
+								onChange={(e) => setSearchQuery(e.target.value)}
+								InputProps={{
+									startAdornment: (
+										<InputAdornment position="start">
+											<Search size={18} color="#94a3b8" />
+										</InputAdornment>
+									),
+								}}
+								sx={{ 
+									width: 300,
+									bgcolor: "background.paper",
+									"& .MuiOutlinedInput-root": {
+										borderRadius: 2
+									}
+								}}
+							/>
+						</Stack>
+					</Stack>
 
-        if (result.success) {
-            toast.success(`✅ Payment of ₱${selectedOrderForPayment.finalTotal.toFixed(2)} recorded!`, { autoClose: 3000 });
-            refresh();
-            setPaymentDialogOpen(false);
-            setSelectedOrderForPayment(null);
-        } else {
-            toast.error(result.error || "Failed to record payment", { autoClose: 3000 });
-        }
-    };
+					{error && <Alert severity="error" sx={{ mb: 4 }}>{error}</Alert>}
 
-    useEffect(() => {
-        const notificationsChannel = pusherClient.subscribe("admin-notifications");
-        const updatesChannel = pusherClient.subscribe("order-updates");
-        
-        notificationsChannel.bind("new-order", (data: any) => {
-            console.log("Real-time: New order received!", data);
-            toast.info(`New Order Received! #${data.orderId?.slice(-6).toUpperCase() || "N/A"}`, {
-                icon: <span>🧺</span>
-            });
-            refresh();
-        });
+					{loading && schedules.length === 0 ? (
+						<Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+							<CircularProgress />
+						</Box>
+					) : (
+						<Box>
+							{Object.keys(groupedSchedules).length === 0 ? (
+								<Paper sx={{ p: 8, textAlign: "center", borderRadius: 3 }}>
+									<CalendarDays size={48} color="#94a3b8" style={{ marginBottom: 16 }} />
+									<Typography color="text.secondary" variant="h6">
+										No schedules found for the current search.
+									</Typography>
+								</Paper>
+							) : (
+								Object.entries(groupedSchedules).map(([date, items]) => (
+									<Box key={date} sx={{ mb: 4 }}>
+										<Stack direction="row" alignItems="center" spacing={1} mb={2}>
+											<Calendar size={18} color="#6366f1" />
+											<Typography variant="subtitle1" sx={{ fontWeight: 700, color: "text.primary" }}>
+												{date}
+											</Typography>
+											<Chip 
+												label={`${items.length} Task${items.length > 1 ? "s" : ""}`} 
+												size="small" 
+												sx={{ fontWeight: 700, height: 20, fontSize: 10 }} 
+											/>
+										</Stack>
 
-        updatesChannel.bind("order-status-updated", (data: any) => {
-            console.log("Real-time: Order status updated!", data);
-            refresh();
-        });
+										<Grid container spacing={2}>
+											{items.map((schedule) => (
+												<Grid key={schedule.id} size={{ xs: 12, md: 6, lg: 4 }}>
+													<Card sx={{ 
+														borderRadius: 3, 
+														boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
+														border: "1px solid",
+														borderColor: "divider",
+														position: "relative",
+														overflow: "visible"
+													}}>
+														<Box sx={{ 
+															position: "absolute", 
+															top: -10, 
+															right: 15,
+															zIndex: 1
+														}}>
+															<Chip 
+																label={schedule.serviceMethod === "pickup" ? "Logistics" : "Store Drop"}
+																color={schedule.serviceMethod === "pickup" ? "primary" : "secondary"}
+																size="small"
+																sx={{ fontWeight: 800, px: 1 }}
+															/>
+														</Box>
 
-        return () => {
-            pusherClient.unsubscribe("admin-notifications");
-            pusherClient.unsubscribe("order-updates");
-        };
-    }, [refresh]);
+														<CardContent sx={{ p: 3 }}>
+															<Stack spacing={2}>
+																<Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+																	<Box>
+																		<Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: "uppercase" }}>
+																			Order #{schedule.orderCode}
+																		</Typography>
+																		<Typography variant="h6" sx={{ fontWeight: 800 }}>
+																			{schedule.customerName}
+																		</Typography>
+																	</Box>
+																	<Box sx={{ textAlign: "right" }}>
+																		<Typography variant="subtitle2" sx={{ fontWeight: 800, color: "primary.main" }}>
+																			{formatPeso(schedule.finalTotal)}
+																		</Typography>
+																		<Chip 
+																			label={schedule.status} 
+																			size="small" 
+																			variant="outlined"
+																			sx={{ height: 20, fontSize: 9, fontWeight: 700, mt: 0.5 }}
+																		/>
+																	</Box>
+																</Stack>
 
-    const filteredSchedules = useMemo(() => {
-        return schedules.filter(s => 
-            s.orderCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            s.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            s.address.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-    }, [schedules, searchQuery]);
+																<Divider />
 
-    if (loading && schedules.length === 0) {
-        return (
-            <Box sx={{ minHeight: "100dvh", display: "flex", bgcolor: "background.default" }}>
-                <Sidebar />
-                <Box component="main" sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <CircularProgress />
-                </Box>
-            </Box>
-        );
-    }
+																<Stack spacing={1.5}>
+																	<Stack direction="row" spacing={1.5} alignItems="center">
+																		<Avatar sx={{ width: 32, height: 32, bgcolor: alpha("#6366f1", 0.1), color: "#6366f1" }}>
+																			<Clock size={16} />
+																		</Avatar>
+																		<Box>
+																			<Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>Time Slot</Typography>
+																			<Typography variant="body2" sx={{ fontWeight: 600 }}>{schedule.selectedSlot}</Typography>
+																		</Box>
+																	</Stack>
 
-    return (
-        <Box sx={{ minHeight: "100dvh", display: "flex", bgcolor: "background.default" }}>
-            <Sidebar />
+																	<Stack direction="row" spacing={1.5} alignItems="center" sx={{ overflow: "hidden" }}>
+																		<Avatar sx={{ width: 32, height: 32, bgcolor: alpha("#10b981", 0.1), color: "#10b981", flexShrink: 0 }}>
+																			<MapPin size={16} />
+																		</Avatar>
+																		<Box sx={{ minWidth: 0, overflow: "hidden", flex: 1 }}>
+																			<Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>Address / Location</Typography>
+																			<Typography variant="body2" sx={{ fontWeight: 600 }} noWrap title={schedule.address}>
+																				{schedule.address}
+																			</Typography>
+																		</Box>
+																	</Stack>
 
-            <Box
-                component="main"
-                sx={{
-                    flex: 1,
-                    minWidth: 0,
-                    display: "flex",
-                    flexDirection: "column",
-                    height: "100dvh",
-                    overflow: "hidden"
-                }}
-            >
-                <Box sx={{ px: { xs: 2, md: 3 }, py: { xs: 2, md: 3 }, flex: 1, overflowY: "auto" }}>
-                    <Stack direction="row" justifyContent="space-between" alignItems="flex-start" mb={3}>
-                        <Box>
-                            <Typography variant="h5" sx={{ fontWeight: 800, color: "text.primary", mb: 0.5 }}>
-                                Order Scheduling
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                                Monitor and manage pickup and drop-off time slots.
-                            </Typography>
-                        </Box>
-                        <Stack direction="row" spacing={1.5}>
-                            <TextField
-                                size="small"
-                                placeholder="Search schedules..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                InputProps={{
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <Search size={16} />
-                                        </InputAdornment>
-                                    ),
-                                }}
-                                sx={{ 
-                                    width: { xs: 150, sm: 250 },
-                                    "& .MuiOutlinedInput-root": { borderRadius: 2 }
-                                }}
-                            />
-                            <Button 
-                                variant="contained" 
-                                startIcon={<RefreshCcw size={18} className={loading ? "animate-spin" : ""} />}
-                                onClick={refresh}
-                                disabled={loading}
-                                sx={{ borderRadius: 2, px: 3 }}
-                            >
-                                Refresh
-                            </Button>
-                        </Stack>
-                    </Stack>
+																	<Stack direction="row" spacing={1.5} alignItems="center">
+																		<Avatar sx={{ width: 32, height: 32, bgcolor: alpha("#f59e0b", 0.1), color: "#f59e0b" }}>
+																			<Phone size={16} />
+																		</Avatar>
+																		<Box>
+																			<Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>Contact Number</Typography>
+																			<Typography variant="body2" sx={{ fontWeight: 600 }}>{schedule.customerPhone}</Typography>
+																		</Box>
+																	</Stack>
+																</Stack>
 
-                    {error && (
-                        <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
-                            {error}
-                        </Alert>
-                    )}
+																<Button 
+																	variant="outlined" 
+																	fullWidth 
+																	size="small"
+																	endIcon={<ChevronRight size={14} />}
+																	onClick={() => handleViewDetails(schedule)}
+																	sx={{ mt: 1, borderRadius: 2, fontWeight: 700 }}
+																>
+																	View Full Order
+																</Button>
+															</Stack>
+														</CardContent>
+													</Card>
+												</Grid>
+											))}
+										</Grid>
+									</Box>
+								))
+							)}
+						</Box>
+					)}
 
-                    <Paper elevation={0} sx={{ borderRadius: 3, border: "1px solid", borderColor: "divider", overflow: "hidden" }}>
-                        <TableContainer>
-                            <Table sx={{ minWidth: 800 }}>
-                                <TableHead sx={{ bgcolor: "rgba(0,0,0,0.02)" }}>
-                                    <TableRow>
-                                        <TableCell sx={{ fontWeight: 700, fontSize: 12 }}>ORDER</TableCell>
-                                        <TableCell sx={{ fontWeight: 700, fontSize: 12 }}>CUSTOMER</TableCell>
-                                        <TableCell sx={{ fontWeight: 700, fontSize: 12 }}>METHOD & SLOT</TableCell>
-                                        <TableCell sx={{ fontWeight: 700, fontSize: 12 }}>LOCATION</TableCell>
-                                        <TableCell sx={{ fontWeight: 700, fontSize: 12 }}>WEIGHT</TableCell>
-                                        <TableCell sx={{ fontWeight: 700, fontSize: 12 }}>PAYMENT</TableCell>
-                                        <TableCell sx={{ fontWeight: 700, fontSize: 12 }}>STATUS</TableCell>
-                                        <TableCell sx={{ fontWeight: 700, fontSize: 12 }}>HANDOVER</TableCell>
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {filteredSchedules.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={6} align="center" sx={{ py: 10 }}>
-                                                <CalendarDays size={40} color="#cbd5e1" style={{ marginBottom: 8 }} />
-                                                <Typography color="text.secondary">No schedules found</Typography>
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : (
-                                        filteredSchedules.map((schedule) => (
-                                            <TableRow key={schedule.id} hover>
-                                                <TableCell>
-                                                    <Typography sx={{ fontWeight: 700, fontSize: 13, color: "primary.main" }}>
-                                                        #{schedule.orderCode}
-                                                    </Typography>
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        ID: {schedule.id.slice(-6)}
-                                                    </Typography>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Stack direction="row" spacing={1.5} alignItems="center">
-                                                        <Avatar sx={{ width: 32, height: 32, bgcolor: alpha("#3f51b5", 0.1), color: "primary.main" }}>
-                                                            <User size={16} />
-                                                        </Avatar>
-                                                        <Box>
-                                                            <Typography sx={{ fontWeight: 600, fontSize: 13 }}>
-                                                                {schedule.customerName}
-                                                            </Typography>
-                                                            <Typography variant="caption" color="text.secondary" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                                                                <Phone size={10} /> {schedule.customerPhone}
-                                                            </Typography>
-                                                        </Box>
-                                                    </Stack>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Stack spacing={0.5}>
-                                                        <Chip 
-                                                            icon={schedule.serviceMethod === "pickup" ? <Truck size={12} /> : <Package size={12} />}
-                                                            label={schedule.serviceMethod.toUpperCase()} 
-                                                            size="small"
-                                                            sx={{ 
-                                                                height: 20, 
-                                                                fontSize: 10, 
-                                                                fontWeight: 700,
-                                                                bgcolor: schedule.serviceMethod === "pickup" ? alpha("#4caf50", 0.1) : alpha("#ff9800", 0.1),
-                                                                color: schedule.serviceMethod === "pickup" ? "success.main" : "warning.main",
-                                                                "& .MuiChip-icon": { color: "inherit" }
-                                                            }}
-                                                        />
-                                                        <Typography sx={{ fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 0.5 }}>
-                                                            <Clock size={14} className="text-blue-500" /> {schedule.selectedSlot}
-                                                        </Typography>
-                                                    </Stack>
-                                                </TableCell>
-                                                <TableCell sx={{ maxWidth: 250 }}>
-                                                    <Typography variant="body2" sx={{ fontSize: 12, color: "text.primary", display: "flex", alignItems: "flex-start", gap: 0.5 }}>
-                                                        <MapPin size={14} className="text-red-400" style={{ marginTop: 2 }} />
-                                                        {schedule.address}
-                                                    </Typography>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Typography sx={{ fontSize: 12, fontWeight: 600 }}>
-                                                        {schedule.totalWeight} kg
-                                                    </Typography>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Tooltip title="Manage Payment Status">
-                                                        <IconButton
-                                                            size="small"
-                                                            onClick={(e) => {
-                                                                setSelectedOrderForPaymentStatus(schedule);
-                                                                setPaymentAnchorEl(e.currentTarget);
-                                                            }}
-                                                            sx={{ p: 0.5 }}
-                                                        >
-                                                            <MoreVertical size={16} />
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Chip 
-                                                        label={schedule.status} 
-                                                        size="small" 
-                                                        color={getStatusColor(schedule.status) as any}
-                                                        sx={{ fontWeight: 700, fontSize: 10, height: 22 }}
-                                                    />
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Tooltip title="View/Record Handover Stages">
-                                                        <IconButton
-                                                            size="small"
-                                                            onClick={(e) => {
-                                                                setSelectedOrderForHandover(schedule);
-                                                                setHandoverAnchorEl(e.currentTarget);
-                                                            }}
-                                                            sx={{ p: 0.5 }}
-                                                        >
-                                                            <MoreVertical size={16} />
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </TableContainer>
-                    </Paper>
-                </Box>
-                <Footer />
-            </Box>
+					{pagination && pagination.totalPages > 1 && (
+						<PremiumPagination
+							page={page}
+							count={pagination.totalPages}
+							onChange={(_, value) => setPage(value)}
+							totalItems={pagination.total}
+							rowsPerPage={pagination.limit}
+							loading={loading}
+						/>
+					)}
+				</Box>
+				<Footer />
+			</Box>
 
-            <Dialog
-                open={paymentDialogOpen}
-                onClose={() => setPaymentDialogOpen(false)}
-                PaperProps={{ sx: { borderRadius: 3, p: 1, maxWidth: 400, width: "100%" } }}
-            >
-                <DialogTitle sx={{ fontWeight: 800 }}>Record Payment Received</DialogTitle>
-                <DialogContent>
-                    <DialogContentText sx={{ mb: 2, fontSize: 13 }}>
-                        Confirm payment received for Order #{selectedOrderForPayment?.orderCode}
-                    </DialogContentText>
-                    <Paper variant="outlined" sx={{ p: 1.5, bgcolor: "rgba(76, 175, 80, 0.04)", borderColor: "success.light", mb: 1.5 }}>
-                        <Stack spacing={0.8}>
-                            <Stack direction="row" justifyContent="space-between">
-                                <Typography variant="caption" color="text.secondary">
-                                    Customer
-                                </Typography>
-                                <Typography variant="caption" fontWeight={700}>
-                                    {selectedOrderForPayment?.customerName}
-                                </Typography>
-                            </Stack>
-                            <Stack direction="row" justifyContent="space-between">
-                                <Typography variant="caption" color="text.secondary">
-                                    Payment Method
-                                </Typography>
-                                <Typography variant="caption" fontWeight={700}>
-                                    COD (Cash on Delivery)
-                                </Typography>
-                            </Stack>
-                            <Stack direction="row" justifyContent="space-between" sx={{ pt: 0.5, borderTop: 1, borderColor: "divider" }}>
-                                <Typography sx={{ fontWeight: 700, fontSize: 12 }}>Amount</Typography>
-                                <Typography sx={{ fontWeight: 800, color: "success.main", fontSize: 14 }}>
-                                    ₱{selectedOrderForPayment?.finalTotal.toFixed(2)}
-                                </Typography>
-                            </Stack>
-                        </Stack>
-                    </Paper>
-                </DialogContent>
-                <DialogActions sx={{ px: 3, pb: 2 }}>
-                    <Button onClick={() => setPaymentDialogOpen(false)} color="inherit" size="small">
-                        Cancel
-                    </Button>
-                    <Button
-                        onClick={executeRecordPayment}
-                        variant="contained"
-                        color="success"
-                        autoFocus
-                        size="small"
-                        disabled={isRecording}
-                        sx={{ borderRadius: 2 }}
-                    >
-                        {isRecording ? "Recording..." : "Confirm Payment"}
-                    </Button>
-                </DialogActions>
-            </Dialog>
+			{/* Transaction Details Dialog */}
+			<Dialog 
+				open={detailsOpen} 
+				onClose={handleCloseDetails}
+				maxWidth="sm"
+				fullWidth
+				PaperProps={{
+					sx: { borderRadius: 3, p: 1 }
+				}}
+			>
+				{selectedSchedule && (
+					<>
+						<DialogTitle sx={{ m: 0, p: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+							<Box>
+								<Typography variant="h6" sx={{ fontWeight: 800 }}>
+									Order Details
+								</Typography>
+								<Typography variant="caption" color="text.secondary">
+									Transaction ID: {selectedSchedule.id}
+								</Typography>
+							</Box>
+							<IconButton onClick={handleCloseDetails} size="small">
+								<X size={18} />
+							</IconButton>
+						</DialogTitle>
+						<DialogContent dividers sx={{ p: 2 }}>
+							<Grid container spacing={2} sx={{ mb: 3 }}>
+								<Grid size={{ xs: 12, sm: 6 }}>
+									<Stack spacing={1}>
+										<Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: "uppercase" }}>
+											Customer Information
+										</Typography>
+										<Typography variant="body2" sx={{ fontWeight: 700 }}>
+											{selectedSchedule.customerName}
+										</Typography>
+										<Typography variant="body2" color="text.secondary">
+											Phone: {selectedSchedule.customerPhone}
+										</Typography>
+										<Typography variant="body2" color="text.secondary">
+											Address: {selectedSchedule.address}
+										</Typography>
+									</Stack>
+								</Grid>
+								<Grid size={{ xs: 12, sm: 6 }}>
+									<Stack spacing={1}>
+										<Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: "uppercase" }}>
+											Order & Logistics
+										</Typography>
+										<Typography variant="body2">
+											<strong>Order Code:</strong> #{selectedSchedule.orderCode}
+										</Typography>
+										<Typography variant="body2">
+											<strong>Service Method:</strong> {selectedSchedule.serviceMethod === "pickup" ? "Delivery & Pickup" : "Store Drop-off"}
+										</Typography>
+										<Typography variant="body2">
+											<strong>Time Slot:</strong> {selectedSchedule.selectedSlot}
+										</Typography>
+										<Typography variant="body2">
+											<strong>Status:</strong> {selectedSchedule.status}
+										</Typography>
+									</Stack>
+								</Grid>
+							</Grid>
 
-            <Menu
-                anchorEl={handoverAnchorEl}
-                open={Boolean(handoverAnchorEl)}
-                onClose={() => {
-                    setHandoverAnchorEl(null);
-                    setSelectedOrderForHandover(null);
-                }}
-                PaperProps={{ sx: { minWidth: 280 } }}
-            >
-                <MenuItem disabled sx={{ fontWeight: 700, fontSize: 12, pb: 1 }}>
-                    Handover Milestones
-                </MenuItem>
-                
-                <MenuItem
-                    onClick={async () => {
-                        if (selectedOrderForHandover) {
-                            await recordHandover(selectedOrderForHandover.orderId, "picked-up");
-                            setHandoverAnchorEl(null);
-                            setSelectedOrderForHandover(null);
-                        }
-                    }}
-                    disabled={isUpdating}
-                    sx={{ py: 1.5 }}
-                >
-                    <Stack spacing={0.3} sx={{ width: "100%" }}>
-                        <Stack direction="row" alignItems="center" spacing={1}>
-                            {selectedOrderForHandover?.pickedUpAt ? (
-                                <CheckCircle2 size={16} style={{ color: "#4caf50" }} />
-                            ) : (
-                                <Circle size={16} />
-                            )}
-                            <Typography sx={{ fontWeight: 700, fontSize: 13 }}>Picked Up</Typography>
-                        </Stack>
-                        <Typography variant="caption" sx={{ color: "text.secondary", fontSize: 11, ml: 3 }}>
-                            {selectedOrderForHandover?.pickedUpAt
-                                ? new Date(selectedOrderForHandover.pickedUpAt).toLocaleString()
-                                : "Awaiting pickup from client"}
-                        </Typography>
-                    </Stack>
-                </MenuItem>
+							<Divider sx={{ my: 2 }} />
 
-                <MenuItem
-                    onClick={async () => {
-                        if (selectedOrderForHandover) {
-                            await recordHandover(selectedOrderForHandover.orderId, "received-by-staff");
-                            setHandoverAnchorEl(null);
-                            setSelectedOrderForHandover(null);
-                        }
-                    }}
-                    disabled={isUpdating}
-                    sx={{ py: 1.5 }}
-                >
-                    <Stack spacing={0.3} sx={{ width: "100%" }}>
-                        <Stack direction="row" alignItems="center" spacing={1}>
-                            {selectedOrderForHandover?.receivedByStaffAt ? (
-                                <CheckCircle2 size={16} style={{ color: "#4caf50" }} />
-                            ) : (
-                                <Circle size={16} />
-                            )}
-                            <Typography sx={{ fontWeight: 700, fontSize: 13 }}>Received by Staff</Typography>
-                        </Stack>
-                        <Typography variant="caption" sx={{ color: "text.secondary", fontSize: 11, ml: 3 }}>
-                            {selectedOrderForHandover?.receivedByStaffAt
-                                ? new Date(selectedOrderForHandover.receivedByStaffAt).toLocaleString()
-                                : "Awaiting facility receipt & weighing"}
-                        </Typography>
-                    </Stack>
-                </MenuItem>
+							<Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1.5 }}>
+								Services Ordered
+							</Typography>
+							<TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2, mb: 3 }}>
+								<Table size="small">
+									<TableHead sx={{ bgcolor: "grey.50" }}>
+										<TableRow>
+											<TableCell sx={{ fontWeight: 700 }}>Service</TableCell>
+											<TableCell align="right" sx={{ fontWeight: 700 }}>Qty</TableCell>
+											<TableCell align="right" sx={{ fontWeight: 700 }}>Total</TableCell>
+										</TableRow>
+									</TableHead>
+									<TableBody>
+										{selectedSchedule.services && selectedSchedule.services.length > 0 ? (
+											selectedSchedule.services.map((svc, idx: number) => (
+												<TableRow key={idx}>
+													<TableCell>{svc.label}</TableCell>
+													<TableCell align="right">{svc.quantity} {svc.unitLabel}</TableCell>
+													<TableCell align="right">{formatPeso(svc.lineTotal)}</TableCell>
+												</TableRow>
+											))
+										) : (
+											<TableRow>
+												<TableCell colSpan={3} align="center">
+													No services listed
+												</TableCell>
+											</TableRow>
+										)}
+									</TableBody>
+								</Table>
+							</TableContainer>
 
-                <MenuItem
-                    onClick={async () => {
-                        if (selectedOrderForHandover) {
-                            await recordHandover(selectedOrderForHandover.orderId, "received-by-client");
-                            setHandoverAnchorEl(null);
-                            setSelectedOrderForHandover(null);
-                        }
-                    }}
-                    disabled={isUpdating}
-                    sx={{ py: 1.5 }}
-                >
-                    <Stack spacing={0.3} sx={{ width: "100%" }}>
-                        <Stack direction="row" alignItems="center" spacing={1}>
-                            {selectedOrderForHandover?.receivedByClientAt ? (
-                                <CheckCircle2 size={16} style={{ color: "#4caf50" }} />
-                            ) : (
-                                <Circle size={16} />
-                            )}
-                            <Typography sx={{ fontWeight: 700, fontSize: 13 }}>Received by Client</Typography>
-                        </Stack>
-                        <Typography variant="caption" sx={{ color: "text.secondary", fontSize: 11, ml: 3 }}>
-                            {selectedOrderForHandover?.receivedByClientAt
-                                ? new Date(selectedOrderForHandover.receivedByClientAt).toLocaleString()
-                                : "Awaiting delivery confirmation"}
-                        </Typography>
-                    </Stack>
-                </MenuItem>
-            </Menu>
+							<Divider sx={{ my: 2 }} />
 
-            <Menu
-                anchorEl={paymentAnchorEl}
-                open={Boolean(paymentAnchorEl)}
-                onClose={() => {
-                    setPaymentAnchorEl(null);
-                    setSelectedOrderForPaymentStatus(null);
-                }}
-                PaperProps={{ sx: { minWidth: 320 } }}
-            >
-                <MenuItem disabled sx={{ fontWeight: 700, fontSize: 12, pb: 1 }}>
-                    Payment Status Tracking
-                </MenuItem>
+							<Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1.5 }}>
+								Financial Breakdown
+							</Typography>
+							<Stack spacing={1}>
+								<Stack direction="row" justifyContent="space-between">
+									<Typography variant="body2" color="text.secondary">Subtotal</Typography>
+									<Typography variant="body2" sx={{ fontWeight: 600 }}>
+										{formatPeso(
+											selectedSchedule.services?.reduce((sum: number, s) => sum + (s.lineTotal || 0), 0) || 0
+										)}
+									</Typography>
+								</Stack>
+								{selectedSchedule.logisticsFee > 0 && (
+									<Stack direction="row" justifyContent="space-between">
+										<Typography variant="body2" color="text.secondary">Logistics Fee</Typography>
+										<Typography variant="body2" sx={{ fontWeight: 600 }}>
+											{formatPeso(selectedSchedule.logisticsFee)}
+										</Typography>
+									</Stack>
+								)}
+								{selectedSchedule.promoDiscount > 0 && (
+									<Stack direction="row" justifyContent="space-between">
+										<Typography variant="body2" color="success.main">Promo Discount</Typography>
+										<Typography variant="body2" color="success.main" sx={{ fontWeight: 600 }}>
+											-{formatPeso(selectedSchedule.promoDiscount)}
+										</Typography>
+									</Stack>
+								)}
+								{selectedSchedule.rewardDiscount > 0 && (
+									<Stack direction="row" justifyContent="space-between">
+										<Typography variant="body2" color="success.main">Loyalty Reward Discount</Typography>
+										<Typography variant="body2" color="success.main" sx={{ fontWeight: 600 }}>
+											-{formatPeso(selectedSchedule.rewardDiscount)}
+										</Typography>
+									</Stack>
+								)}
+								{selectedSchedule.loyaltyDiscount > 0 && (
+									<Stack direction="row" justifyContent="space-between">
+										<Typography variant="body2" color="success.main">Loyalty Tier Discount</Typography>
+										<Typography variant="body2" color="success.main" sx={{ fontWeight: 600 }}>
+											-{formatPeso(selectedSchedule.loyaltyDiscount)}
+										</Typography>
+									</Stack>
+								)}
+								<Divider sx={{ my: 0.5 }} />
+								<Stack direction="row" justifyContent="space-between">
+									<Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Total Amount</Typography>
+									<Typography variant="subtitle2" color="primary.main" sx={{ fontWeight: 800 }}>
+										{formatPeso(selectedSchedule.finalTotal)}
+									</Typography>
+								</Stack>
+							</Stack>
 
-                <MenuItem
-                    onClick={async () => {
-                        if (selectedOrderForPaymentStatus && selectedOrderForPaymentStatus.paymentStatus !== "unpaid") {
-                            // Call endpoint to mark as unpaid
-                            console.log("Marking order as unpaid");
-                            setPaymentAnchorEl(null);
-                            setSelectedOrderForPaymentStatus(null);
-                            refresh();
-                            toast.success("Order marked as unpaid");
-                        }
-                    }}
-                    sx={{ py: 1.5 }}
-                >
-                    <Stack spacing={0.3} sx={{ width: "100%" }}>
-                        <Stack direction="row" alignItems="center" spacing={1}>
-                            <Box
-                                sx={{
-                                    width: 12,
-                                    height: 12,
-                                    borderRadius: "50%",
-                                    bgcolor: selectedOrderForPaymentStatus?.paymentStatus === "unpaid" ? "#ff9800" : "transparent",
-                                    border: "2px solid #ff9800",
-                                }}
-                            />
-                            <Typography sx={{ fontWeight: 700, fontSize: 13 }}>Unpaid</Typography>
-                            {selectedOrderForPaymentStatus?.paymentStatus === "unpaid" && (
-                                <Chip label="Current" size="small" sx={{ height: 20, fontSize: 10, ml: "auto" }} />
-                            )}
-                        </Stack>
-                        <Typography variant="caption" sx={{ color: "text.secondary", fontSize: 11, ml: 3 }}>
-                            Order placed but no payment recorded
-                        </Typography>
-                    </Stack>
-                </MenuItem>
+							<Divider sx={{ my: 2 }} />
 
-                <MenuItem
-                    onClick={async () => {
-                        if (selectedOrderForPaymentStatus) {
-                            // Call endpoint to mark as partially paid
-                            console.log("Marking order as partially paid");
-                            setPaymentAnchorEl(null);
-                            setSelectedOrderForPaymentStatus(null);
-                            refresh();
-                            toast.success("Order marked as partially paid");
-                        }
-                    }}
-                    sx={{ py: 1.5 }}
-                >
-                    <Stack spacing={0.3} sx={{ width: "100%" }}>
-                        <Stack direction="row" alignItems="center" spacing={1}>
-                            <Box
-                                sx={{
-                                    width: 12,
-                                    height: 12,
-                                    borderRadius: "50%",
-                                    bgcolor: selectedOrderForPaymentStatus?.paymentStatus === "partially_paid" ? "#ffc107" : "transparent",
-                                    border: "2px solid #ffc107",
-                                }}
-                            />
-                            <Typography sx={{ fontWeight: 700, fontSize: 13 }}>Partially Paid</Typography>
-                            {selectedOrderForPaymentStatus?.paymentStatus === "partially_paid" && (
-                                <Chip label="Current" size="small" sx={{ height: 20, fontSize: 10, ml: "auto" }} />
-                            )}
-                        </Stack>
-                        <Typography variant="caption" sx={{ color: "text.secondary", fontSize: 11, ml: 3 }}>
-                            Down-payment received, balance pending
-                        </Typography>
-                    </Stack>
-                </MenuItem>
-
-                <MenuItem
-                    onClick={async () => {
-                        if (selectedOrderForPaymentStatus && selectedOrderForPaymentStatus.paymentStatus === "unpaid") {
-                            await handleRecordPayment(selectedOrderForPaymentStatus);
-                            setPaymentAnchorEl(null);
-                            setSelectedOrderForPaymentStatus(null);
-                        }
-                    }}
-                    disabled={selectedOrderForPaymentStatus?.paymentStatus !== "unpaid"}
-                    sx={{ py: 1.5 }}
-                >
-                    <Stack spacing={0.3} sx={{ width: "100%" }}>
-                        <Stack direction="row" alignItems="center" spacing={1}>
-                            <Box
-                                sx={{
-                                    width: 12,
-                                    height: 12,
-                                    borderRadius: "50%",
-                                    bgcolor: selectedOrderForPaymentStatus?.paymentStatus === "paid" ? "#4caf50" : "transparent",
-                                    border: "2px solid #4caf50",
-                                }}
-                            />
-                            <Typography sx={{ fontWeight: 700, fontSize: 13 }}>Paid</Typography>
-                            {selectedOrderForPaymentStatus?.paymentStatus === "paid" && (
-                                <Chip label="Current" size="small" sx={{ height: 20, fontSize: 10, ml: "auto" }} />
-                            )}
-                        </Stack>
-                        <Typography variant="caption" sx={{ color: "text.secondary", fontSize: 11, ml: 3 }}>
-                            Full transaction cleared
-                        </Typography>
-                    </Stack>
-                </MenuItem>
-
-                <MenuItem
-                    onClick={async () => {
-                        if (selectedOrderForPaymentStatus) {
-                            // Call endpoint to mark as refunded
-                            console.log("Marking order as refunded");
-                            setPaymentAnchorEl(null);
-                            setSelectedOrderForPaymentStatus(null);
-                            refresh();
-                            toast.success("Order marked as refunded");
-                        }
-                    }}
-                    sx={{ py: 1.5 }}
-                >
-                    <Stack spacing={0.3} sx={{ width: "100%" }}>
-                        <Stack direction="row" alignItems="center" spacing={1}>
-                            <Box
-                                sx={{
-                                    width: 12,
-                                    height: 12,
-                                    borderRadius: "50%",
-                                    bgcolor: selectedOrderForPaymentStatus?.paymentStatus === "refunded" ? "#f44336" : "transparent",
-                                    border: "2px solid #f44336",
-                                }}
-                            />
-                            <Typography sx={{ fontWeight: 700, fontSize: 13 }}>Refunded</Typography>
-                            {selectedOrderForPaymentStatus?.paymentStatus === "refunded" && (
-                                <Chip label="Current" size="small" sx={{ height: 20, fontSize: 10, ml: "auto" }} />
-                            )}
-                        </Stack>
-                        <Typography variant="caption" sx={{ color: "text.secondary", fontSize: 11, ml: 3 }}>
-                            Refund issued due to cancellation
-                        </Typography>
-                    </Stack>
-                </MenuItem>
-            </Menu>
-        </Box>
-    );
+							<Grid container spacing={2}>
+								<Grid size={{ xs: 6 }}>
+									<Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: "block" }}>
+										Payment Method
+									</Typography>
+									<Typography variant="body2" sx={{ fontWeight: 700 }}>
+										{selectedSchedule.paymentMethod}
+									</Typography>
+								</Grid>
+								<Grid size={{ xs: 6 }}>
+									<Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: "block", mb: 0.5 }}>
+										Payment Status
+									</Typography>
+									<Stack direction="row" spacing={1} alignItems="center">
+										<Chip 
+											label={selectedSchedule.paymentStatus} 
+											size="small" 
+											color={selectedSchedule.paymentStatus === "paid" ? "success" : "warning"}
+											sx={{ fontWeight: 700, textTransform: "capitalize" }}
+										/>
+										<Button
+											size="small"
+											variant="outlined"
+											color={selectedSchedule.paymentStatus === "paid" ? "error" : "success"}
+											onClick={() => handleTogglePaymentStatus(selectedSchedule)}
+											disabled={updatingPaymentId === selectedSchedule.id}
+											sx={{ py: 0.25, px: 1, fontSize: 10, height: 24, fontWeight: 700 }}
+										>
+											{updatingPaymentId === selectedSchedule.id ? "..." : selectedSchedule.paymentStatus === "paid" ? "Mark Unpaid" : "Mark Paid"}
+										</Button>
+									</Stack>
+								</Grid>
+							</Grid>
+						</DialogContent>
+						<DialogActions sx={{ p: 2 }}>
+							<Button onClick={handleCloseDetails} variant="contained" fullWidth sx={{ borderRadius: 2 }}>
+								Close
+							</Button>
+						</DialogActions>
+					</>
+				)}
+			</Dialog>
+		</Box>
+	);
 }

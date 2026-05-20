@@ -23,12 +23,12 @@ export function useDashboardStats() {
         try {
             setLoading(true);
             const response = await fetch("/api/admin/dashboard");
-            if (!response.ok) throw new Error("Failed to fetch dashboard data");
             const result = await response.json();
+            if (!response.ok) throw new Error(result.error || "Failed to fetch dashboard data");
             setData(result);
             setError(null);
         } catch (err) {
-            setError("Unable to load dashboard data.");
+            setError(err instanceof Error ? err.message : "Unable to load dashboard data.");
             console.error(err);
         } finally {
             setLoading(false);

@@ -85,11 +85,14 @@ export function useLogin() {
 						? data.error
 						: genericLoginError;
 
+				const unverified = data && "unverified" in data ? (data as any).unverified : undefined;
+
 				setApiError(errorMessage);
 				return {
 					ok: false,
 					error: errorMessage,
 					status: response.status,
+					unverified,
 				};
 			}
 

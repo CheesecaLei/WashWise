@@ -14,14 +14,19 @@ export interface Schedule {
     finalTotal: number;
     address: string;
     createdAt: string;
-    // Payment status tracking
-    paymentStatus: "unpaid" | "partially_paid" | "paid" | "refunded";
-    // Weight tracking
-    totalWeight: number;
-    // Handover timestamps (ISO string or null)
-    pickedUpAt: string | null;
-    receivedByStaffAt: string | null;
-    receivedByClientAt: string | null;
+    paymentMethod?: string;
+    paymentStatus?: string;
+    logisticsFee?: number;
+    promoDiscount?: number;
+    rewardDiscount?: number;
+    loyaltyDiscount?: number;
+    services?: Array<{
+        id: string;
+        label: string;
+        quantity: number;
+        unitLabel: string;
+        lineTotal: number;
+    }>;
 }
 
 interface PaginationData {
@@ -59,6 +64,28 @@ export function useSchedules() {
         }
     }, []);
 
+    const updatePaymentStatus = useCallback(async (checkoutId: string, paymentStatus: string) => {
+        try {
+            const response = await fetch("/api/admin/scheduling", {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ checkoutId, paymentStatus }),
+            });
+            const data = await response.json();
+            if (data.success) {
+                setSchedules(prev => prev.map(s => s.id === checkoutId ? { ...s, paymentStatus } : s));
+                return { success: true };
+            } else {
+                return { success: false, error: data.error || "Failed to update payment status" };
+            }
+        } catch (err) {
+            console.error(err);
+            return { success: false, error: "An error occurred while updating payment status" };
+        }
+    }, []);
+
     useEffect(() => {
         fetchSchedules(page);
     }, [fetchSchedules, page]);
@@ -70,6 +97,7 @@ export function useSchedules() {
         page,
         setPage,
         pagination,
+        updatePaymentStatus,
         refresh: () => fetchSchedules(page)
     };
 }

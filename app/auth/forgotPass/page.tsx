@@ -25,8 +25,6 @@ import {
 } from "@mui/material";
 import AuthLayoutWrapper from "../components/AuthLayoutWrapper";
 import {
-	authFooterBrandText,
-	authFooterLinks,
 	forgotPasswordPageCopy,
 } from "../../data/auth";
 import { useForgotPassword } from "../../hooks/use-forgot-password";

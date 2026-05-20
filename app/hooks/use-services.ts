@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Service } from "../types/new-order";
 
-export type ServiceResponse<T = {}> =
+export type ServiceResponse<T = Record<string, unknown>> =
 	| ({ success: true; error?: never } & T)
 	| { success: false; error: string };
 

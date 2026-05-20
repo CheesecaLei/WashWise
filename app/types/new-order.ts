@@ -2,12 +2,6 @@ export type ServiceKey = string;
 
 export type ServiceIconName = string;
 
-/**
- * Payment Status Enum - Industry standard payment lifecycle tracking.
- * Follows ISO 20022 payment status conventions and common e-commerce standards.
- */
-export type PaymentStatus = "unpaid" | "partially_paid" | "paid" | "refunded";
-
 export type Service = {
 	_id?: string;
 	id: ServiceKey;
@@ -57,12 +51,14 @@ export type PlacedOrderDeliveryType = {
 	notes: string[];
 };
 
+export type PaymentStatus = "unpaid" | "partially_paid" | "paid" | "refunded";
+
 export type OrderServiceItem = {
 	id: ServiceKey;
 	quantity: number;
 	lineTotal: number;
 	label: string;
-	unitLabel: string;
+	unitLabel: "kg" | "pc";
 };
 
 export type CreateOrderRequest = {
@@ -86,17 +82,15 @@ export type FetchOrderResponse = {
 		specialInstructions: string;
 		subtotal: number;
 		status: string;
-		createdAt: string;
-		/** Computed total weight (kg) for services that use kg as unit */
 		totalWeight?: number;
-		/** Payment status tracking — industry standard lifecycle */
-		paymentStatus: PaymentStatus;
-		/** Loyalty discount applied (in peso amount) */
-		loyaltyDiscount?: number;
-		/** Handover timestamps (ISO) */
+		paymentStatus?: PaymentStatus;
 		pickedUpAt?: string | null;
 		receivedByStaffAt?: string | null;
 		receivedByClientAt?: string | null;
+		loyaltyDiscount?: number;
+		createdAt: string;
+		updatedAt?: string;
+		checkout?: Record<string, unknown>; // Simple Record for now or use CreateCheckoutRequest if it matches
 	};
 	error?: string;
 };
@@ -111,9 +105,8 @@ export type CreateCheckoutRequest = {
 	paymentMethod?: string;
 	logisticsFee: number;
 	promoDiscount: number;
-	/** Loyalty discount applied in peso amount */
-	loyaltyDiscount?: number;
-	finalTotal: number;
+	rewardId?: string | null;
+	finalTotal?: number;
 };
 
 export type CreateCheckoutResponse = {
@@ -136,26 +129,24 @@ export type FetchTransactionResponse = {
 		paymentMethod: string;
 		logisticsFee: number;
 		promoDiscount: number;
+		rewardDiscount?: number;
+		loyaltyDiscount?: number;
 		rewardId?: string | null;
 		finalTotal: number;
-		createdAt: string;
-		/** Payment status at transaction time */
 		paymentStatus?: PaymentStatus;
+		createdAt: string;
 		order?: {
 			_id: string;
 			services: OrderServiceItem[];
 			specialInstructions: string;
 			subtotal: number;
 			status: string;
-			/** Computed total weight (kg) for services that use kg as unit */
 			totalWeight?: number;
-			/** Payment status tracking */
 			paymentStatus?: PaymentStatus;
-			/** Loyalty discount applied (peso) */
-			loyaltyDiscount?: number;
 			pickedUpAt?: string | null;
 			receivedByStaffAt?: string | null;
 			receivedByClientAt?: string | null;
+			loyaltyDiscount?: number;
 		};
 	};
 	error?: string;
@@ -183,19 +174,25 @@ export type FetchTransactionsResponse = {
 		logisticsFee: number;
 		promoDiscount: number;
 		rewardId?: string | null;
+		rewardDiscount?: number;
+		loyaltyDiscount?: number;
 		finalTotal: number;
-		createdAt: string;
-		/** Payment status at transaction time */
 		paymentStatus?: PaymentStatus;
+		createdAt: string;
 		order?: {
 			_id: string;
 			services: OrderServiceItem[];
 			specialInstructions: string;
 			subtotal: number;
 			status: string;
-			/** Computed total weight (kg) for services that use kg as unit */
 			totalWeight?: number;
-			/** Payment status tracking */
 			paymentStatus?: PaymentStatus;
-			/** Loyalty discount applied (peso) */
+			pickedUpAt?: string | null;
+			receivedByStaffAt?: string | null;
+			receivedByClientAt?: string | null;
 			loyaltyDiscount?: number;
+		};
+	}>;
+	pagination?: PaginationData;
+	error?: string;
+};

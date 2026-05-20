@@ -15,7 +15,7 @@ export const authFooterLinks: AuthFooterLink[] = [
 	{ id: "support", label: "Support", href: "/support" },
 ];
 
-export const authFooterBrandText = "\u00A9 2024 Wash Wise Laundry Services";
+export const authFooterBrandText = `\u00A9 ${new Date().getFullYear()} Wash Wise Laundry Services`;
 
 export const loginPageCopy = {
 	title: "Log In",
@@ -59,7 +59,7 @@ export const signupFormLabels = {
 	province: "Province",
 	country: "Country",
 	postalCode: "Postal Code",
-	password: "Password",
+	password: "Account Password",
 	confirmPassword: "Confirm Password",
 } as const;
 
@@ -99,6 +99,26 @@ export const olongapoBarangays: string[] = [
 	"Santa Rita",
 	"West Bajac-Bajac",
 	"West Tapinac",
+];
+
+export const olongapoStreets: string[] = [
+	"Rizal Avenue",
+	"Magsaysay Drive",
+	"Gordon Avenue",
+	"Tabacuhan Road",
+	"18th Street",
+	"14th Street",
+	"Arthur Street",
+	"Filipino Street",
+	"Harris Street",
+	"West Bajac-Bajac Street",
+	"East Bajac-Bajac Street",
+	"Sta. Rita Road",
+	"Kalaklan Street",
+	"Barretto Street",
+	"Pag-asa Street",
+	"New Cabalan Street",
+	"Old Cabalan Street"
 ];
 
 export const signupReadonlyAddress: SignupReadonlyAddress = {
@@ -141,8 +161,8 @@ export const signupStepFields: SignupFieldKey[][] = [
 
 export const signupFieldHints: SignupFieldHints = {
 	email: "Only @gmail.com addresses are accepted.",
-	contactNumber: "Accepted format: 09XXXXXXXXX",
-	barangay: "Select from official Olongapo City barangays.",
+	contactNumber: "Format: 09XXXXXXXXX. Handled securely for logistics coordination & order notifications under the Philippine DPA.",
+	barangay: "Select official barangay. Handled securely solely to coordinate order deliveries.",
 	password: "Use at least 8 characters.",
 };
 

@@ -32,6 +32,7 @@ import { toast } from "react-toastify";
 import { Search } from "@mui/icons-material";
 import Sidebar from "../../components/sidebar";
 import Footer from "../../components/footer";
+import RewardsModal from "../../components/RewardsModal";
 import { useLayoutShell } from "../../providers/layout-shell-provider";
 import { useOrder } from "../../hooks/use-order";
 import { useRewards } from "../../hooks/use-rewards";
@@ -98,11 +99,20 @@ function metricColor(accent: PulseMetricAccent) {
 	}
 }
 
+interface PulseMetric {
+	id: string | number;
+	accent: PulseMetricAccent;
+	icon: PulseMetricIconName;
+	value: string | number;
+	label: string;
+}
+
 export default function DashboardPage() {
 	const { navigate } = useLayoutShell();
 	const { fetchDashboard, isLoadingOrder } = useOrder();
-	const [pulseMetrics, setPulseMetrics] = useState<any[]>([]);
+	const [pulseMetrics, setPulseMetrics] = useState<PulseMetric[]>([]);
 	const [activities, setActivities] = useState<Activity[]>([]);
+	const [rewardsOpen, setRewardsOpen] = useState(false);
 	const { summary } = useRewards();
 
 	useEffect(() => {
@@ -119,7 +129,7 @@ export default function DashboardPage() {
 
 		const channel = pusherClient.subscribe("order-updates");
 		
-		channel.bind("order-status-updated", (data: any) => {
+		channel.bind("order-status-updated", (data: { status?: string; serviceMethod?: string; orderId?: string }) => {
 			console.log("Member Dashboard: Real-time update received!", data);
 			
 			let statusLabel = data.status;
@@ -157,7 +167,7 @@ export default function DashboardPage() {
 	}
 
 	return (
-		<Box sx={{ minHeight: "100dvh", height: { xs: "auto", md: "100dvh" }, display: "flex", bgcolor: "background.default", overflow: { xs: "visible", md: "hidden" } }}>
+		<Box sx={{ minHeight: "100dvh", display: "flex", bgcolor: "background.default" }}>
 			<Sidebar />
 
 			<Box
@@ -165,9 +175,6 @@ export default function DashboardPage() {
 				sx={{
 					flex: 1,
 					minWidth: 0,
-					height: { xs: "auto", md: "100dvh" },
-					overflowY: "auto",
-					overflowX: "hidden",
 					display: "flex",
 					flexDirection: "column",
 				}}
@@ -352,7 +359,7 @@ export default function DashboardPage() {
 									cursor: "pointer",
 									"&:hover": { opacity: 0.95 }
 								}} 
-								onClick={() => navigate("/member/rewards")}
+								onClick={() => setRewardsOpen(true)}
 							>
 								<Stack direction="row" spacing={1.5} alignItems="center">
 									<Avatar sx={{ bgcolor: alpha("#fff", 0.2), color: "white" }}>
@@ -373,6 +380,8 @@ export default function DashboardPage() {
 
 				<Footer />
 			</Box>
+
+			<RewardsModal open={rewardsOpen} onClose={() => setRewardsOpen(false)} />
 		</Box>
 	);
 }

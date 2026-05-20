@@ -5,10 +5,6 @@ import {
 	Trophy,
 	Users,
 	Gift,
-	History,
-	TrendingUp,
-	Star,
-	Sparkles,
 	Coins,
 } from "lucide-react";
 import {
@@ -34,8 +30,42 @@ import Sidebar from "../../components/sidebar";
 import Footer from "../../components/footer";
 import PremiumPagination from "../../components/pagination";
 
+interface UserTier {
+	userId: string;
+	username: string;
+	tier: string;
+	totalPoints: number;
+	completedOrders: number;
+}
+
+interface Redemption {
+	id: string;
+	username: string;
+	points: number;
+	description: string;
+	createdAt: string;
+}
+
+interface RewardsData {
+	stats?: {
+		totalPointsAwarded?: number;
+		totalPointsRedeemed?: number;
+		totalMembers?: number;
+		tierCounts?: {
+			vip?: number;
+		};
+	};
+	userTiers?: UserTier[];
+	recentRedemptions?: Redemption[];
+	pagination?: {
+		total: number;
+		totalPages: number;
+		limit: number;
+	};
+}
+
 export default function AdminRewardsPage() {
-	const [data, setData] = useState<any>(null);
+	const [data, setData] = useState<RewardsData | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [page, setPage] = useState(1);
@@ -56,6 +86,7 @@ export default function AdminRewardsPage() {
 	}, []);
 
 	useEffect(() => {
+		// eslint-disable-next-line react-hooks/set-state-in-effect
 		fetchData(page);
 	}, [fetchData, page]);
 
@@ -81,7 +112,7 @@ export default function AdminRewardsPage() {
 		<Box sx={{ minHeight: "100dvh", display: "flex", bgcolor: "background.default" }}>
 			<Sidebar />
 
-			<Box component="main" sx={{ flex: 1, display: "flex", flexDirection: "column", height: "100dvh", overflow: "hidden" }}>
+			<Box component="main" sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
 				<Box sx={{ px: { xs: 2, md: 3 }, py: { xs: 2, md: 3 }, flex: 1, overflowY: "auto" }}>
 					<Stack direction="row" justifyContent="space-between" alignItems="flex-start" mb={3}>
 						<Box>
@@ -129,7 +160,7 @@ export default function AdminRewardsPage() {
 											</TableRow>
 										</TableHead>
 										<TableBody>
-											{data?.userTiers?.map((user: any) => (
+											{data?.userTiers?.map((user: UserTier) => (
 												<TableRow key={user.userId}>
 													<TableCell>
 														<Stack direction="row" spacing={1.5} alignItems="center">
@@ -179,7 +210,7 @@ export default function AdminRewardsPage() {
 									{data?.recentRedemptions?.length === 0 ? (
 										<Typography color="text.secondary" align="center" sx={{ py: 4 }}>No redemptions yet</Typography>
 									) : (
-										data?.recentRedemptions?.map((redeem: any) => (
+										data?.recentRedemptions?.map((redeem: Redemption) => (
 											<Box key={redeem.id}>
 												<Stack direction="row" justifyContent="space-between" mb={0.5}>
 													<Typography sx={{ fontWeight: 800, fontSize: 13 }}>{redeem.username}</Typography>
