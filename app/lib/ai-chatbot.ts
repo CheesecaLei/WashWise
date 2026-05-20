@@ -168,6 +168,96 @@ IMPORTANT: If the question is about general procedures (how to do something), pr
 
 When escalation is truly needed, start your response with: "ESCALATE_TO_HUMAN: [specific reason]"`;
 
+const COMMON_SUPPORT_RESPONSES: Array<{ patterns: RegExp[]; response: string }> = [
+    {
+        patterns: [/track/i, /order status/i, /where is my order/i, /my orders/i],
+        response: `Hello! To track your order, please follow these steps:
+
+1. Log in to your WashWise account
+2. Go to the "My Orders" section
+3. Select the order you want to check
+4. View the latest status updates and delivery progress
+
+Let me know if you need help with anything else!`
+    },
+    {
+        patterns: [/change (?:my )?(?:delivery )?address/i, /delivery address/i, /update address/i, /edit address/i],
+        response: `Hello! To change your delivery address, please follow these steps:
+
+1. Open Profile Settings
+2. Select "Saved Addresses"
+3. Add a new address or edit an existing one
+4. Save your changes before placing your next order
+
+You can also save multiple addresses and choose one during checkout.`
+    },
+    {
+        patterns: [/service hours/i, /hours of operation/i, /when are you open/i, /operating hours/i],
+        response: `Hello! Our service hours are Monday to Saturday, 8:00 AM to 8:00 PM.
+
+If you need help outside these hours, you can still leave a message and our support team will respond as soon as possible.`
+    },
+    {
+        patterns: [/what services/i, /services do you offer/i, /what do you offer/i],
+        response: `Hello! We offer professional laundry and dry cleaning services, including wash and fold, dry cleaning, ironing only, pickup and delivery, and express service.
+
+If you want, I can also help you choose the right service for your items.`
+    },
+    {
+        patterns: [/wash.?&.?fold/i, /wash and fold/i, /wash fold/i, /wash.*(how much|price|cost)/i],
+        response: `Hello! Wash and fold pricing is typically ₱80 to ₱120 per kg for regular service, and ₱150 to ₱200 per kg for express service.
+
+If you want a quote for a specific order, I can help you estimate it based on your items.`
+    },
+    {
+        patterns: [/place an order/i, /new order/i, /how do i order/i, /place order/i],
+        response: `Hello! To place an order, please follow these steps:
+
+1. Go to the "New Order" section
+2. Select your service
+3. Choose pickup or delivery options
+4. Review your details and complete checkout
+
+You can track the order later in the "My Orders" section.`
+    },
+    {
+        patterns: [/payment methods/i, /how can i pay/i, /do you accept/i, /gcash/i, /paymaya/i, /credit card/i],
+        response: `Hello! We accept cash, GCash, PayMaya, and credit or debit cards.
+
+If you want, I can also explain the best payment option for your order.`
+    },
+    {
+        patterns: [/update my profile/i, /update profile/i, /profile settings/i, /change profile/i, /change password/i],
+        response: `Hello! To update your profile, open Profile Settings from your account menu.
+
+There you can edit your name, contact details, email address, and saved address information before saving the changes.`
+    },
+    {
+        patterns: [/multiple addresses/i, /save multiple/i, /saved addresses/i],
+        response: `Hello! Yes, you can save multiple delivery addresses.
+
+Go to Profile Settings, open Saved Addresses, and add as many locations as you need. You can choose the right address during checkout.`
+    },
+    {
+        patterns: [/how long/i, /turnaround/i, /service take/i, /processing time/i],
+        response: `Hello! Standard service usually takes 3 to 5 days, while express service offers a 24-hour turnaround with an additional fee.
+
+If you want, I can help you choose the fastest option for your order.`
+    }
+];
+
+function getCommonSupportResponse(message: string): string | null {
+    const normalizedMessage = message.toLowerCase().replace(/\s+/g, ' ').trim();
+
+    for (const entry of COMMON_SUPPORT_RESPONSES) {
+        if (entry.patterns.some(pattern => pattern.test(normalizedMessage))) {
+            return entry.response;
+        }
+    }
+
+    return null;
+}
+
 /**
  * Load and validate AI configuration from environment variables
  */
@@ -327,7 +417,6 @@ function startChatSession(model: any, history: ChatMessage[]): any {
 /**
  * Send message with timeout protection
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function sendMessageWithTimeout(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     chat: any,
@@ -529,6 +618,22 @@ export async function getAIResponse(
         
         // Sanitize and validate input
         const sanitizedMessage = sanitizeInput(userMessage, config.maxInputLength);
+
+        // Answer common support questions immediately so routine help does not depend on the model.
+        const directResponse = getCommonSupportResponse(sanitizedMessage);
+        if (directResponse) {
+            const responseTime = Date.now() - startTime;
+
+            return {
+                message: directResponse,
+                shouldEscalate: false,
+                confidence: 0.98,
+                metadata: {
+                    responseTime,
+                    modelVersion: 'rule-based-faq'
+                }
+            };
+        }
         
         // Normalize conversation history
         const normalizedHistory = normalizeConversationHistory(
