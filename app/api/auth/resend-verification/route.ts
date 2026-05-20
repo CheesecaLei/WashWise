@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
             { $set: { emailVerificationToken: verificationToken, emailVerificationExpiry: verificationExpiry } }
         );
 
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
         const verifyUrl = `${appUrl}/auth/verify-email?token=${verificationToken}`;
 
         await sendEmail({

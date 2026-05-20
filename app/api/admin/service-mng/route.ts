@@ -197,6 +197,7 @@ export async function PATCH(request: NextRequest) {
         try {
             const orderCode = orderId.toString().slice(-6).toUpperCase();
             if (customer?.email) {
+                const appUrl = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
                 await sendEmail({
                     to: customer.email,
                     subject: `[WashWise] Order #${orderCode} Status Updated to ${status}`,
@@ -208,7 +209,7 @@ export async function PATCH(request: NextRequest) {
                             <div style="background-color: #f0f9ff; border-left: 4px solid #0284c7; padding: 15px; margin: 20px 0;">
                                 <p style="margin: 0; font-size: 16px;">Current Status: <strong style="text-transform: uppercase; color: #0284c7;">${status}</strong></p>
                             </div>
-                            <p>You can track the live status of your order anytime on the <a href="http://localhost:3000/member/dashboard" style="color: #0284c7; text-decoration: none; font-weight: bold;">WashWise Dashboard</a>.</p>
+                            <p>You can track the live status of your order anytime on the <a href="${appUrl}/member/dashboard" style="color: #0284c7; text-decoration: none; font-weight: bold;">WashWise Dashboard</a>.</p>
                             <hr style="border: 0; border-top: 1px solid #e0e0e0; margin: 20px 0;" />
                             <p style="font-size: 12px; color: #666;">This is an automated notification from WashWise. Please do not reply directly to this email.</p>
                         </div>
